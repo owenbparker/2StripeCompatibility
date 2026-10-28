@@ -1,33 +1,100 @@
 import type { SurfaceSchemaLayoutDefinition } from '@companion-surface/base'
 
-/**
- * A physical control on the panel that Companion treats as a button.
- * `row`/`column` place it on the Companion grid.
- */
+/** A physical button, addressed by its bank and bit in the panel protocol */
 export interface PanelButton {
 	id: string
+	bank: number
+	bit: number
+	row: number
+	column: number
+}
+
+/** One cell of a blue LCD: 2 lines of 5 characters above a column of buttons */
+export interface LcdCell {
+	id: string
+	stripe: 1 | 2
+	/** 0-15, left to right */
+	index: number
 	row: number
 	column: number
 }
 
 /**
- * PROVISIONAL: the real button list comes from decoding a packet capture of the panel.
- * Until then this models two stripes, each with a Program and Preview row.
+ * Each stripe has three rows of 16 buttons, with an LCD between the first and second row.
+ * A row is two banks: the left 8 buttons, then the right 8.
+ * Rows are listed top to bottom, matching the order they were pressed in the capture.
  */
-const BUTTONS_PER_ROW = 10
-const ROWS = ['stripe1-pgm', 'stripe1-pvw', 'stripe2-pgm', 'stripe2-pvw']
+const STRIPES = [
+	{ stripe: 1, rows: [[0x15, 0x23], [0x14, 0x22], [0x13, 0x21]], lcdLines: [1, 3] },
+	{ stripe: 2, rows: [[0x12, 0x20], [0x11, 0x17], [0x10, 0x16]], lcdLines: [2, 4] },
+] as const
 
-export const PANEL_BUTTONS: PanelButton[] = ROWS.flatMap((rowName, row) =>
-	Array.from({ length: BUTTONS_PER_ROW }, (_, column) => ({
-		id: `${rowName}-${column + 1}`,
-		row,
-		column,
-	})),
-)
+/** Lines (protocol display numbers) that make up a stripe's LCD, top line first */
+export function lcdLinesForStripe(stripe: 1 | 2): readonly [number, number] {
+	return STRIPES[stripe - 1].lcdLines
+}
+
+/**
+ * Banks in the right-hand section (transitions, keyers, delegates, joystick area).
+ * Their physical positions are not mapped yet, so they are laid out two banks per row.
+ */
+const OTHER_BANKS = [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47]
+
+const STRIPE_HEIGHT = 4 // button row, LCD, button row, button row
+const OTHER_START_ROW = STRIPES.length * STRIPE_HEIGHT
+
+function buildButtons(): PanelButton[] {
+	const buttons: PanelButton[] = []
+	for (const { stripe, rows } of STRIPES) {
+		rows.forEach((banks, rowIndex) => {
+			// Leave a grid row for the LCD under the first button row
+			const row = (stripe - 1) * STRIPE_HEIGHT + (rowIndex === 0 ? 0 : rowIndex + 1)
+			banks.forEach((bank, half) => {
+				for (let bit = 0; bit < 8; bit++) {
+					const column = half * 8 + bit
+					buttons.push({ id: `stripe${stripe}-row${rowIndex + 1}-${column + 1}`, bank, bit, row, column })
+				}
+			})
+		})
+	}
+	OTHER_BANKS.forEach((bank, i) => {
+		for (let bit = 0; bit < 8; bit++) {
+			buttons.push({
+				id: `bank${bank.toString(16)}-${bit + 1}`,
+				bank,
+				bit,
+				row: OTHER_START_ROW + Math.floor(i / 2),
+				column: (i % 2) * 8 + bit,
+			})
+		}
+	})
+	return buttons
+}
+
+function buildLcdCells(): LcdCell[] {
+	return STRIPES.flatMap(({ stripe }) =>
+		Array.from({ length: 16 }, (_, index) => ({
+			id: `stripe${stripe}-lcd-${index + 1}`,
+			stripe,
+			index,
+			row: (stripe - 1) * STRIPE_HEIGHT + 1,
+			column: index,
+		})),
+	)
+}
+
+export const PANEL_BUTTONS = buildButtons()
+export const LCD_CELLS = buildLcdCells()
+
+const buttonsByBankBit = new Map(PANEL_BUTTONS.map((b) => [b.bank * 8 + b.bit, b]))
+export function findButton(bank: number, bit: number): PanelButton | undefined {
+	return buttonsByBankBit.get(bank * 8 + bit)
+}
 
 /** Analog controls, reported to Companion as input variables */
 export const ANALOG_INPUTS = [
-	{ id: 'tbar', name: 'T-Bar position (0-1)' },
+	{ id: 'tbar1', name: 'T-Bar 1 position (0 to 1)' },
+	{ id: 'tbar2', name: 'T-Bar 2 position (0 to 1)' },
 	{ id: 'joystick_x', name: 'Joystick X (-1 to 1)' },
 	{ id: 'joystick_y', name: 'Joystick Y (-1 to 1)' },
 	{ id: 'joystick_z', name: 'Joystick twist (-1 to 1)' },
@@ -38,9 +105,13 @@ export type AnalogInputId = (typeof ANALOG_INPUTS)[number]['id']
 export function buildSurfaceLayout(): SurfaceSchemaLayoutDefinition {
 	return {
 		stylePresets: {
-			// The panel's buttons are lit, not displays, so only a colour is needed
+			// Buttons only have an on/off light, so a colour is all they need
 			default: { colors: 'hex' },
+			lcd: { text: true },
 		},
-		controls: Object.fromEntries(PANEL_BUTTONS.map((b) => [b.id, { row: b.row, column: b.column }])),
+		controls: {
+			...Object.fromEntries(PANEL_BUTTONS.map((b) => [b.id, { row: b.row, column: b.column }])),
+			...Object.fromEntries(LCD_CELLS.map((c) => [c.id, { row: c.row, column: c.column, stylePreset: 'lcd' }])),
+		},
 	}
 }

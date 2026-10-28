@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseColor, scaleColor } from './color.ts'
+import { parseColor } from './color.ts'
 
 test('parses hex colours', () => {
 	assert.deepEqual(parseColor('#ff8000'), { r: 255, g: 128, b: 0 })
@@ -16,6 +16,3 @@ test('treats missing or unknown colours as off', () => {
 	assert.deepEqual(parseColor('purple'), { r: 0, g: 0, b: 0 })
 })
 
-test('scales by brightness', () => {
-	assert.deepEqual(scaleColor({ r: 200, g: 100, b: 0 }, 50), { r: 100, g: 50, b: 0 })
-})

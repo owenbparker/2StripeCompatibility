@@ -23,7 +23,3 @@ export function parseColor(color: string | undefined): Rgb {
 	return { r: 0, g: 0, b: 0 }
 }
 
-export function scaleColor(color: Rgb, brightnessPercent: number): Rgb {
-	const f = Math.min(100, Math.max(0, brightnessPercent)) / 100
-	return { r: Math.round(color.r * f), g: Math.round(color.g * f), b: Math.round(color.b * f) }
-}

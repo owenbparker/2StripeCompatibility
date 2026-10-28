@@ -9,7 +9,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"dev": "tsc -p tsconfig.build.json --watch",
-		"test": "tsc -p tsconfig.json --noEmit && node --test --experimental-strip-types src/**/*.test.ts",
+		"test": "tsc -p tsconfig.json --noEmit && node --test --experimental-strip-types --test-timeout=10000 \"src/**/*.test.ts\"",
 		"package": "npm run build && companion-surface-build"
 	},
 	"engines": {
