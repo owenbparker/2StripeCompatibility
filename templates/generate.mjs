@@ -1,6 +1,6 @@
 // Builds 2stripe-vmix-atem.companionconfig: a Companion 5.1 page laid out for the tricaster-2stripe surface (v0.1.7+).
-//   Upper stripe + light grey transition area -> vMix, on the mix picked with the 1 2 3 4 buttons above the upper middle cluster
-//   Lower stripe + dark grey transition area  -> ATEM, on the M/E picked with the 1 2 3 4 buttons above the lower middle cluster
+//   Upper stripe -> vMix, on the mix picked with the 1 2 3 4 buttons above the upper middle cluster; light grey area -> vMix mix 1
+//   Lower stripe -> ATEM, on the M/E picked with the 1 2 3 4 buttons above the lower middle cluster; dark grey area -> ATEM M/E 1
 //   Each stripe: KEY row = overlay, A/C or PGM row = program, B/D or PREV row = preview. The right-hand section is left empty.
 // Run: node templates/generate.mjs [connections.json] > out.companionconfig
 // connections.json (optional) is the "instances" object from one of your own page exports, so the page
@@ -137,17 +137,6 @@ const varIs = (name, value) => ({
 	isInverted: v(false),
 })
 const varLit = (name, value) => ({ ...varIs(name, value), styleOverrides: [override('text0', 'color', WHITE), override('box0', 'color', YELLOW)] })
-/** ATEM actions whose M/E is a dropdown: one "if atem_me = n" block per M/E */
-const onAtemMe = (definitionId, o) =>
-	[1, 2, 3, 4].map((me) => ({
-		id: id(),
-		definitionId: 'logic_if',
-		connectionId: 'internal',
-		options: {},
-		children: { condition: [varIs(ATEM_ME, me)], actions: [action(ATEM, definitionId, { mixeffect: me - 1, ...o })], else_actions: [] },
-		type: 'action',
-	}))
-
 // Grid position -> control. Rows/columns follow the tricaster-2stripe v0.1.7 surface layout.
 const controls = {}
 const put = (row, column, c) => ((controls[row] ??= {})[column] = c)
@@ -190,9 +179,10 @@ for (let n = 1; n <= 4; n++) {
 	put(14, n, control(`M/E ${n}`, [setVar(ATEM_ME, n)], [varLit(ATEM_ME, n)]))
 }
 
-// Light grey transition area (rows 8-11): vMix, on the selected mix
-const vmixTransition = (fn, label) => control(label, [action(VMIX, 'transition', { functionID: fn, ...vmixMix })])
-const vmixMixTransition = (fn, label, duration) => control(label, [action(VMIX, 'transitionMix', { functionID: fn, ...vmixMix, duration })])
+// Light grey transition area (rows 8-11): vMix mix 1, the same mix as the upper T-bar
+const mix1 = { mix: 0, mixVariable: '' }
+const vmixTransition = (fn, label) => control(label, [action(VMIX, 'transition', { functionID: fn, ...mix1 })])
+const vmixMixTransition = (fn, label, duration) => control(label, [action(VMIX, 'transitionMix', { functionID: fn, ...mix1, duration })])
 put(8, 0, vmixTransition('Transition1', 'T1'))
 for (let k = 1; k <= 4; k++) put(8, k, vmixTransition(`Stinger${k}`, `STING ${k}`))
 put(9, 0, vmixMixTransition('Fade', 'FADE', '1000'))
@@ -209,21 +199,26 @@ put(11, 1, vmixMixTransition('Fade', 'AUTO', '1000'))
 for (let k = 1; k <= 4; k++) {
 	const overlay = String(k)
 	const tally = () => advanced(VMIX, 'overlayStatus', { input: '', overlay, fg: WHITE, bgPreview: GREEN, bgProgram: RED })
-	const ovl = (type) => action(VMIX, 'overlayFunctions', { type, input: '', overlay, mix: [-2], mixVariable: vmixMix.mixVariable })
+	const ovl = (type) => action(VMIX, 'overlayFunctions', { type, input: '', overlay, mix: [0], mixVariable: '' })
 	put(7 + k, 6, control(`OVL${k}\nTAKE`, [ovl('Last')], [tally()]))
 	put(7 + k, 7, control(`OVL${k}\nOUT`, [ovl('Out')], [tally()]))
 }
 
-// Dark grey transition area (rows 12-15): ATEM, on the selected M/E
-const selection = (component, label) => control(label, onAtemMe('transitionSelectionComponent', { component, mode: 'toggle' }))
-put(12, 0, selection(0, 'BKGD'))
-for (let k = 1; k <= 4; k++) put(12, k, selection(k, `KEY ${k}`))
-put(13, 0, control('MIX', onAtemMe('transitionStyle', { style: 0 })))
-put(13, 1, control('WIPE', onAtemMe('transitionStyle', { style: 2 })))
-put(14, 0, control('DVE', onAtemMe('transitionStyle', { style: 3 })))
-put(13, 2, control('FTB', onAtemMe('fadeToBlackAuto', {})))
-put(15, 0, control('CUT', onAtemMe('cut', {})))
-put(15, 1, control('AUTO', onAtemMe('auto', {})))
+// Dark grey transition area (rows 12-15): ATEM M/E 1, the same M/E as the lower T-bar
+const ME1 = { mixeffect: 0 }
+const selection = (component, label, selId) =>
+	control(label, [action(ATEM, 'transitionSelectionComponent', { ...ME1, component, mode: 'toggle' })], [
+		lit(ATEM, 'transitionSelection', { ...ME1, matchmethod: 'contains', selection: [selId] }, YELLOW),
+	])
+put(12, 0, selection(0, 'BKGD', 'background'))
+for (let k = 1; k <= 4; k++) put(12, k, selection(k, `KEY ${k}`, `key${k - 1}`))
+const style = (st, label) => control(label, [action(ATEM, 'transitionStyle', { ...ME1, style: st })], [lit(ATEM, 'transitionStyle', { ...ME1, style: st }, YELLOW)])
+put(13, 0, style(0, 'MIX'))
+put(13, 1, style(2, 'WIPE'))
+put(14, 0, style(3, 'DVE'))
+put(13, 2, control('FTB', [action(ATEM, 'fadeToBlackAuto', ME1)], [lit(ATEM, 'fadeToBlackIsBlack', { ...ME1, state: 'on' })]))
+put(15, 0, control('CUT', [action(ATEM, 'cut', ME1)]))
+put(15, 1, control('AUTO', [action(ATEM, 'auto', ME1)], [lit(ATEM, 'inTransition', ME1)]))
 // KEY 1-4 TAKE/AUTO -> ATEM downstream keyers 1-4
 for (let k = 0; k < 4; k++) {
 	const onAir = () => lit(ATEM, 'dsk_bg', { key: k })

@@ -58,11 +58,11 @@ The lights are on/off only. No per-button colour or brightness command has been 
 | --- | --- |
 | `10` + `16` | Upper stripe, KEY row (left 8, right 8) |
 | `11` + `17` | Upper stripe, A/C row |
-| `12` + `20` | Upper stripe, B/D row |
-| `13` + `21` | Lower stripe, KEY row |
+| `13` + `21` | Upper stripe, B/D row |
+| `12` + `20` | Lower stripe, KEY row (lighting `12` lights this row) |
 | `14` + `22` | Lower stripe, PGM A/C row (confirmed on hardware) |
 | `15` + `23` | Lower stripe, PREV B/D row (confirmed on hardware) |
-| `30`–`37`, `40`–`47` | Right-hand section (transition, keyer and joystick area). Physical positions not mapped yet. |
+| `30`–`37`, `40`–`47` | Right-hand section (transition areas, delegates, joystick, media players). Mapped in `src/panel/controls.ts`. |
 | `48` | Reset by the TriCaster, but no presses seen |
 
 ## Analog controls (panel → host)

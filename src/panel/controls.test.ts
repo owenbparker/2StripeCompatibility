@@ -16,6 +16,9 @@ test('maps stripe banks onto rows of 16', () => {
 	assert.equal(findButton(0x14, 1)?.id, 'stripe2-row2-2')
 	assert.equal(findButton(0x23, 7)?.id, 'stripe2-row3-16')
 	assert.equal(findButton(0x10, 0)?.id, 'stripe1-row1-1')
+	// Lighting bank 12 lit the lower stripe's KEY row, so 12/20 and 13/21 cross over
+	assert.equal(findButton(0x12, 0)?.id, 'stripe2-row1-1')
+	assert.equal(findButton(0x21, 7)?.id, 'stripe1-row3-16')
 	assert.equal(findButton(0x37, 4)?.id, 'lower-take')
 	assert.equal(findButton(0x31, 0)?.id, 'bank31-1')
 	assert.equal(findButton(0x99, 0), undefined)

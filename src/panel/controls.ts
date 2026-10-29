@@ -25,12 +25,13 @@ export interface LcdCell {
 /**
  * Each stripe has three rows of 16 buttons (KEY, A/C, B/D), with an LCD between the first and second row.
  * A row is two banks: the left 8 buttons, then the right 8.
- * Stripe 1 is the upper stripe. Rows are listed top to bottom, as confirmed on hardware:
- * bank 15 is the lower stripe's PREV B/D row and bank 14 its PGM A/C row.
+ * Stripe 1 is the upper stripe. Rows are listed top to bottom, as seen on hardware:
+ * bank 15 is the lower stripe's PREV B/D row and bank 14 its PGM A/C row. Banks 12 and 13 are not in stripe order:
+ * lighting bank 12 lights the lower stripe's KEY row, so the upper stripe's B/D row is bank 13.
  */
 const STRIPES = [
-	{ stripe: 1, rows: [[0x10, 0x16], [0x11, 0x17], [0x12, 0x20]], lcdLines: [1, 3] },
-	{ stripe: 2, rows: [[0x13, 0x21], [0x14, 0x22], [0x15, 0x23]], lcdLines: [2, 4] },
+	{ stripe: 1, rows: [[0x10, 0x16], [0x11, 0x17], [0x13, 0x21]], lcdLines: [1, 3] },
+	{ stripe: 2, rows: [[0x12, 0x20], [0x14, 0x22], [0x15, 0x23]], lcdLines: [2, 4] },
 ] as const
 
 /** Protocol display numbers of a stripe's left (columns 1-8) and right (columns 9-16) LCDs, confirmed on hardware */
