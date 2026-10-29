@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { createSocket, type Socket } from 'node:dgram'
+import { networkInterfaces } from 'node:os'
 import { DISCOVERY_PORT, DISCOVERY_PROBE, parseDiscoveryReply, type DiscoveryReply } from './protocol.ts'
 
 export interface DiscoveryEvents {
@@ -50,7 +51,10 @@ export class PanelDiscovery extends EventEmitter<DiscoveryEvents> {
 	}
 
 	#probe(): void {
-		this.#socket?.send(DISCOVERY_PROBE, DISCOVERY_PORT, '255.255.255.255')
+		// Windows only sends 255.255.255.255 out of one interface, so also target each interface's own broadcast address
+		for (const address of broadcastAddresses()) {
+			this.#socket?.send(DISCOVERY_PROBE, DISCOVERY_PORT, address)
+		}
 
 		const now = Date.now()
 		for (const [mac, seen] of this.#lastSeen) {
@@ -60,4 +64,18 @@ export class PanelDiscovery extends EventEmitter<DiscoveryEvents> {
 			}
 		}
 	}
+}
+
+/** The limited broadcast address plus the directed broadcast address of every IPv4 interface */
+export function broadcastAddresses(interfaces = networkInterfaces()): string[] {
+	const addresses = new Set(['255.255.255.255'])
+	for (const list of Object.values(interfaces)) {
+		for (const iface of list ?? []) {
+			if (iface.family !== 'IPv4' || iface.internal) continue
+			const ip = iface.address.split('.').map(Number)
+			const mask = iface.netmask.split('.').map(Number)
+			addresses.add(ip.map((octet, i) => (octet | (~mask[i] & 0xff)) & 0xff).join('.'))
+		}
+	}
+	return [...addresses]
 }
