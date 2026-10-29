@@ -10,6 +10,7 @@ export interface DiscoveryEvents {
 
 const PROBE_INTERVAL_MS = 10_000
 const FORGET_AFTER_MS = 60_000
+const FIRST_SEARCH_MS = 2000
 
 /**
  * Finds panels by broadcasting the search packet understood by their built-in USR-TCP232 adapter.
@@ -19,9 +20,29 @@ export class PanelDiscovery extends EventEmitter<DiscoveryEvents> {
 	#socket: Socket | null = null
 	#timer: NodeJS.Timeout | null = null
 	readonly #lastSeen = new Map<string, number>()
+	readonly #byMac = new Map<string, DiscoveryReply>()
+
+	/** Current address of a panel by MAC, if it has answered recently */
+	ipForMac(mac: string): string | undefined {
+		return this.#byMac.get(mac)?.ip
+	}
+
+	macForIp(ip: string): string | undefined {
+		for (const panel of this.#byMac.values()) if (panel.ip === ip) return panel.mac
+		return undefined
+	}
+
+	/** All panels that have answered recently */
+	get panels(): DiscoveryReply[] {
+		return [...this.#byMac.values()]
+	}
+
+	/** Resolves once the first search has had time to get answers */
+	settled: Promise<void> = Promise.resolve()
 
 	start(): void {
 		if (this.#socket) return
+		this.settled = new Promise((resolve) => setTimeout(resolve, FIRST_SEARCH_MS))
 		const socket = createSocket({ type: 'udp4', reuseAddr: true })
 		this.#socket = socket
 
@@ -32,9 +53,10 @@ export class PanelDiscovery extends EventEmitter<DiscoveryEvents> {
 		socket.on('message', (msg) => {
 			const reply = parseDiscoveryReply(msg)
 			if (!reply) return
-			const isNew = !this.#lastSeen.has(reply.mac)
+			const changed = this.#byMac.get(reply.mac)?.ip !== reply.ip
 			this.#lastSeen.set(reply.mac, Date.now())
-			if (isNew) this.emit('found', reply)
+			this.#byMac.set(reply.mac, reply)
+			if (changed) this.emit('found', reply)
 		})
 		socket.bind(DISCOVERY_PORT, () => {
 			socket.setBroadcast(true)
@@ -60,6 +82,7 @@ export class PanelDiscovery extends EventEmitter<DiscoveryEvents> {
 		for (const [mac, seen] of this.#lastSeen) {
 			if (now - seen > FORGET_AFTER_MS) {
 				this.#lastSeen.delete(mac)
+				this.#byMac.delete(mac)
 				this.emit('lost', mac)
 			}
 		}

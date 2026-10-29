@@ -24,7 +24,11 @@ A [Bitfocus Companion](https://bitfocus.io/companion) surface module that lets t
    first.** The panel expects one controller at a time.
 2. Install the module into Companion 5.1 or newer (see Development below).
 3. In Companion's Surfaces page, add a remote surface of type TriCaster 2-Stripe. The panel should be listed
-   automatically. If it isn't, enter its IP address.
+   automatically. If it isn't, enter its IP address, or leave the address empty to use the first panel found.
+
+The panel picks its own `169.254.x.x` address when there is no DHCP server, and it can change after a restart. Once
+connected, the module remembers the panel by its MAC address and follows it to its new address, and Companion keeps
+the same surface.
 
 ### Grid layout
 
