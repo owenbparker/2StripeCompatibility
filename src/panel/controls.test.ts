@@ -16,7 +16,7 @@ test('maps stripe banks onto rows of 16', () => {
 	assert.equal(findButton(0x14, 1)?.id, 'stripe2-row2-2')
 	assert.equal(findButton(0x23, 7)?.id, 'stripe2-row3-16')
 	assert.equal(findButton(0x10, 0)?.id, 'stripe1-row1-1')
-	assert.equal(findButton(0x37, 4)?.id, 'vmix-take')
+	assert.equal(findButton(0x37, 4)?.id, 'lower-take')
 	assert.equal(findButton(0x31, 0)?.id, 'bank31-1')
 	assert.equal(findButton(0x99, 0), undefined)
 })
@@ -26,8 +26,8 @@ test('right-hand buttons sit where they are on the panel', () => {
 		const b = PANEL_BUTTONS.find((b) => b.id === id)
 		return b && [b.row, b.column]
 	}
-	assert.deepEqual(at('atem-bkgd'), [8, 0])
-	assert.deepEqual(at('vmix-auto'), [15, 1])
+	assert.deepEqual(at('upper-bkgd'), [8, 0])
+	assert.deepEqual(at('lower-auto'), [15, 1])
 	assert.deepEqual(at('me-1'), [8, 9])
 	assert.deepEqual(findButton(0x46, 2) && at(findButton(0x46, 2)!.id), [15, 11])
 	assert.ok(PANEL_BUTTONS.filter((b) => b.bank >= 0x30).every((b) => b.row >= 8))

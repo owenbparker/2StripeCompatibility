@@ -1,6 +1,6 @@
 {
 	"name": "companion-surface-tricaster-2stripe",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "Bitfocus Companion surface module for the Vizrt/NewTek TriCaster 2-Stripe control panel",
 	"type": "module",
 	"main": "dist/main.js",

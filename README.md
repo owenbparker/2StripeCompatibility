@@ -46,7 +46,9 @@ the same surface.
 | 16–18 | Bits not seen in any press yet (`bank<nn>-<bit>`) |
 
 The exact control ids are in `src/panel/controls.ts`. `templates/2stripe-vmix-atem.companionconfig` is a ready-made
-page: the upper stripe and light grey area run ATEM M/E 1–4, the lower stripe, dark grey area and T-bar run vMix mix 1–4. The M/E buttons (and the first four KEY buttons of each stripe) pick which M/E or mix.
+page: the upper stripe, light grey area and upper T-bar run vMix (mix 1–4), the lower stripe, dark grey area and
+lower T-bar run ATEM (M/E 1–4). On each stripe the KEY row is overlay, the middle row program and the bottom row
+preview. The 1 2 3 4 buttons above each middle cluster pick the mix or M/E.
 
 Each stripe has two LCDs (over columns 1–8 and 9–16), each 2 lines of 40 characters. Every column gets 5 characters
 on each line, showing the text of the button directly under it (the A/C or PGM row). To show something else, give the
