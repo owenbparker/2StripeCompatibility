@@ -39,7 +39,13 @@ export class TwoStripeSurface implements SurfaceInstance {
 			const button = findButton(bank, bit)
 			if (button) context.keyUpById(button.id)
 		})
-		panel.on('analog', (id, value) => context.sendVariableValue(id, value))
+		panel.on('analog', (id, value) => {
+			context.sendVariableValue(id, value)
+			if (id === 'tbar1' || id === 'tbar2') {
+				context.sendVariableValue(`${id}_255`, Math.round(value * 255))
+				context.sendVariableValue(`${id}_100`, Math.round(value * 100))
+			}
+		})
 		panel.on('disconnected', (err) => context.disconnect(err))
 	}
 

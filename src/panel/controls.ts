@@ -215,6 +215,11 @@ export function findButton(bank: number, bit: number): PanelButton | undefined {
 export const ANALOG_INPUTS = [
 	{ id: 'tbar1', name: 'T-Bar 1 position (0 to 1)' },
 	{ id: 'tbar2', name: 'T-Bar 2 position (0 to 1)' },
+	// The same positions scaled for vMix "Set t-bar position" (0-255) and ATEM "Set TBar position" (0-100)
+	{ id: 'tbar1_255', name: 'T-Bar 1 position (0 to 255)' },
+	{ id: 'tbar1_100', name: 'T-Bar 1 position (0 to 100)' },
+	{ id: 'tbar2_255', name: 'T-Bar 2 position (0 to 255)' },
+	{ id: 'tbar2_100', name: 'T-Bar 2 position (0 to 100)' },
 	{ id: 'joystick_x', name: 'Joystick X (-1 to 1)' },
 	{ id: 'joystick_y', name: 'Joystick Y (-1 to 1)' },
 	{ id: 'joystick_z', name: 'Joystick twist (-1 to 1)' },

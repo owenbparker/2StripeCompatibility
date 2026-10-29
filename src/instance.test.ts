@@ -13,10 +13,12 @@ function setup() {
 		setLcdLine: (display: number, text: string) => lcd.set(display, text),
 		close: async () => {},
 	}) as unknown as TwoStripeConnection
-	const surface = new TwoStripeSurface('test', panel, {} as SurfaceContext)
+	const variables = new Map<string, unknown>()
+	const context = { sendVariableValue: (id: string, value: unknown) => variables.set(id, value) } as unknown as SurfaceContext
+	const surface = new TwoStripeSurface('test', panel, context)
 	const draw = (controlId: string, text: string, color = '#000000') =>
 		surface.draw(new AbortController().signal, { controlId, text, color, pressed: false })
-	return { lcd, leds, draw }
+	return { lcd, leds, draw, panel, variables }
 }
 
 test('labels the LCD with the text of the button under it', async () => {
@@ -50,4 +52,12 @@ test('writes the media player LCD as two 40 character lines', async () => {
 	await draw('media-lcd', 'CLIP 1\nREADY')
 	assert.equal(lcd.get(7)?.slice(0, 6), 'CLIP 1')
 	assert.equal(lcd.get(7)?.slice(40, 45), 'READY')
+})
+
+test('reports T-bar positions scaled for vMix and ATEM', () => {
+	const { panel, variables } = setup()
+	panel.emit('analog', 'tbar2', 0.5)
+	assert.equal(variables.get('tbar2'), 0.5)
+	assert.equal(variables.get('tbar2_255'), 128)
+	assert.equal(variables.get('tbar2_100'), 50)
 })

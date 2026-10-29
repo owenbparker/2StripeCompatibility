@@ -56,7 +56,12 @@ The LCD in the media player area is the `media-lcd` control (row 14, column 11):
 
 Every button press is logged as `2-Stripe press: <control>` in Companion's log, which helps when mapping the panel.
 
-Variables: `tbar1`, `tbar2` (0 to 1), `joystick_x`, `joystick_y`, `joystick_z` (-1 to 1).
+Variables: `tbar1`, `tbar2` (0 to 1), the same scaled for vMix as `tbar1_255`/`tbar2_255` and for ATEM as
+`tbar1_100`/`tbar2_100`, and `joystick_x`, `joystick_y`, `joystick_z` (-1 to 1).
+
+`templates/2stripe-tbar-triggers.companionconfig` holds two triggers: custom variable `tbar_atem` drives the ATEM
+M/E 1 T-bar and `tbar_vmix` the vMix T-bar. Create both custom variables, then in the surface's settings send one
+T-bar's `_100` variable to `tbar_atem` and the other's `_255` variable to `tbar_vmix`.
 
 ## Development
 
