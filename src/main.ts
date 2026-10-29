@@ -66,7 +66,10 @@ class TwoStripeRemote extends EventEmitter<SurfacePluginRemoteEvents<PluginInfo>
 	async startConnections(connectionInfos: RemoteSurfaceConnectionInfo[]): Promise<void> {
 		for (const info of connectionInfos) {
 			const host = String(info.config.host ?? '').trim()
-			if (this.#links.has(info.connectionId)) continue
+			const existing = this.#links.get(info.connectionId)
+			if (existing && existing.host === host) continue
+			// The address was edited: drop the old connection before starting again
+			if (existing) await this.stopConnections([info.connectionId])
 
 			const link: PanelLink = { host, mac: null, stopped: false, retryTimer: null }
 			this.#links.set(info.connectionId, link)
