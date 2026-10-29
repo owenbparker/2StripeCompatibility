@@ -81,6 +81,7 @@ The lights are on/off only. No per-button colour or brightness command has been 
 | `O<n><2048 hex>` | 128×64 monochrome OLED `n` (1 or 2), 1 bit per pixel in SSD1306 page order (8 pages × 128 columns, LSB at the top). The TriCaster draws the stripe name here, for example `MAIN`. |
 | `5 0 RRGGBB` / `6 0 RRGGBB` | Colour of the light on T-bar 1 / T-bar 2, written without spaces, for example `50DC00EE`. |
 
-Each LCD line is 16 cells of 5 characters, one cell above each column of buttons. LCD lines 1 and 3 are assumed to be the upper
-stripe's top and bottom lines, and 2 and 4 the lower stripe's. Both stripes showed the same text in the capture, so this pairing still
-needs confirming on real hardware.
+Each `L` display is one physical LCD of 2 lines × 40 characters, sent as one 80-character string (top line, then
+bottom line). Each stripe has two: `L1` (upper stripe, columns 1–8), `L3` (upper, 9–16), `L2` (lower, 1–8), `L4` (lower,
+9–16), confirmed on hardware. Each button column gets 5 characters per line, which is how the TriCaster puts `DDR` /
+`M/E` on the top line and `1`–`4` underneath. `L7` is the LCD in the media player area.

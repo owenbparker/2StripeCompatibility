@@ -11,14 +11,18 @@ test('respects explicit line breaks', () => {
 	assert.deepEqual(textToCellLines(undefined), ['     ', '     '])
 })
 
-test('renders cells into two 80 character lines', () => {
+test('renders each half of the stripe as its own 2-line LCD', () => {
 	const lcd = new LcdBuffer()
 	assert.equal(lcd.setCell(0, 'DDR\n1'), true)
 	assert.equal(lcd.setCell(0, 'DDR\n1'), false)
+	lcd.setCell(8, 'M/E\n2')
 	lcd.setCell(15, 'END')
-	const [top, bottom] = lcd.lines()
-	assert.equal(top.length, 80)
-	assert.equal(top.slice(0, 5), 'DDR  ')
-	assert.equal(top.slice(75), 'END  ')
-	assert.equal(bottom.slice(0, 5), '1    ')
+	const [left, right] = lcd.displays()
+	assert.equal(left.length, 80)
+	assert.equal(left.slice(0, 5), 'DDR  ')
+	assert.equal(left.slice(40, 45), '1    ')
+	// Matches what the TriCaster sent for its M/E labels: names on the top line, numbers below
+	assert.equal(right.slice(0, 5), 'M/E  ')
+	assert.equal(right.slice(35, 40), 'END  ')
+	assert.equal(right.slice(40, 45), '2    ')
 })

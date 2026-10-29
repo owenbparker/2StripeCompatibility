@@ -5,7 +5,7 @@ import { buildSurfaceLayout, findButton, LCD_CELLS, PANEL_BUTTONS } from './cont
 test('every control has a unique id and grid position', () => {
 	const layout = buildSurfaceLayout()
 	const ids = Object.keys(layout.controls)
-	assert.equal(ids.length, PANEL_BUTTONS.length + LCD_CELLS.length)
+	assert.equal(ids.length, PANEL_BUTTONS.length + LCD_CELLS.length + 1)
 	const positions = new Set(Object.values(layout.controls).map((c) => `${c.row},${c.column}`))
 	assert.equal(positions.size, ids.length)
 })

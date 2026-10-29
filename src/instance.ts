@@ -1,8 +1,9 @@
 import type { CardGenerator, SurfaceContext, SurfaceDrawProps, SurfaceInstance } from '@companion-surface/base'
 import { parseColor } from './panel/color.ts'
 import type { TwoStripeConnection } from './panel/connection.ts'
-import { findButton, LCD_CELLS, lcdLinesForStripe, PANEL_BUTTONS } from './panel/controls.ts'
-import { LcdBuffer } from './panel/lcd.ts'
+import { AUX_LCD, findButton, LCD_CELLS, lcdDisplaysForStripe, PANEL_BUTTONS } from './panel/controls.ts'
+import { LcdBuffer, textToDisplay } from './panel/lcd.ts'
+import { AUX_DISPLAY } from './panel/protocol.ts'
 
 const buttonsById = new Map(PANEL_BUTTONS.map((b) => [b.id, b]))
 const lcdCellsById = new Map(LCD_CELLS.map((c) => [c.id, c]))
@@ -30,6 +31,8 @@ export class TwoStripeSurface implements SurfaceInstance {
 
 		panel.on('buttonDown', (bank, bit) => {
 			const button = findButton(bank, bit)
+			// Logged so buttons can be located from Companion's log while mapping the panel
+			console.log(`2-Stripe press: ${button?.id ?? 'unmapped'} (bank ${bank.toString(16)} bit ${bit})`)
 			if (button) context.keyDownById(button.id)
 		})
 		panel.on('buttonUp', (bank, bit) => {
@@ -84,6 +87,11 @@ export class TwoStripeSurface implements SurfaceInstance {
 			return
 		}
 
+		if (drawProps.controlId === AUX_LCD.id) {
+			this.#panel.setLcdLine(AUX_DISPLAY, textToDisplay(drawProps.text))
+			return
+		}
+
 		const cell = lcdCellsById.get(drawProps.controlId)
 		if (cell) {
 			this.#lcdText[cell.stripe][cell.index] = drawProps.text ?? ''
@@ -99,13 +107,13 @@ export class TwoStripeSurface implements SurfaceInstance {
 
 	async showStatus(_signal: AbortSignal, _cardGenerator: CardGenerator, statusMessage: string): Promise<void> {
 		await this.blank()
-		this.#panel.setLcdLine(lcdLinesForStripe(1)[0], statusMessage)
+		this.#panel.setLcdLine(lcdDisplaysForStripe(1)[0], statusMessage)
 	}
 
 	#flushLcd(stripe: 1 | 2): void {
-		const [top, bottom] = this.#lcds[stripe].lines()
-		const [topLine, bottomLine] = lcdLinesForStripe(stripe)
-		this.#panel.setLcdLine(topLine, top)
-		this.#panel.setLcdLine(bottomLine, bottom)
+		const [left, right] = this.#lcds[stripe].displays()
+		const [leftDisplay, rightDisplay] = lcdDisplaysForStripe(stripe)
+		this.#panel.setLcdLine(leftDisplay, left)
+		this.#panel.setLcdLine(rightDisplay, right)
 	}
 }

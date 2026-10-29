@@ -33,8 +33,8 @@ const STRIPES = [
 	{ stripe: 2, rows: [[0x13, 0x21], [0x14, 0x22], [0x15, 0x23]], lcdLines: [2, 4] },
 ] as const
 
-/** Lines (protocol display numbers) that make up a stripe's LCD, top line first */
-export function lcdLinesForStripe(stripe: 1 | 2): readonly [number, number] {
+/** Protocol display numbers of a stripe's left (columns 1-8) and right (columns 9-16) LCDs, confirmed on hardware */
+export function lcdDisplaysForStripe(stripe: 1 | 2): readonly [number, number] {
 	return STRIPES[stripe - 1].lcdLines
 }
 
@@ -96,6 +96,9 @@ function buildLcdCells(): LcdCell[] {
 }
 
 export const PANEL_BUTTONS = buildButtons()
+
+/** The LCD in the media player area, shown as one text control under the right-hand banks */
+export const AUX_LCD = { id: 'media-lcd', row: OTHER_START_ROW + OTHER_BANKS.length / 2, column: 0 }
 export const LCD_CELLS = buildLcdCells()
 
 const buttonsByBankBit = new Map(PANEL_BUTTONS.map((b) => [b.bank * 8 + b.bit, b]))
@@ -124,6 +127,7 @@ export function buildSurfaceLayout(): SurfaceSchemaLayoutDefinition {
 		controls: {
 			...Object.fromEntries(PANEL_BUTTONS.map((b) => [b.id, { row: b.row, column: b.column }])),
 			...Object.fromEntries(LCD_CELLS.map((c) => [c.id, { row: c.row, column: c.column, stylePreset: 'lcd' }])),
+			[AUX_LCD.id]: { row: AUX_LCD.row, column: AUX_LCD.column, stylePreset: 'lcd' },
 		},
 	}
 }

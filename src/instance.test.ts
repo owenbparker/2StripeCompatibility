@@ -30,9 +30,11 @@ test('text on the LCD row takes priority over the button under it', async () => 
 	await draw('stripe1-row2-3', 'CAM3')
 	await draw('stripe1-lcd-3', 'WIDE\nSHOT')
 	assert.equal(lcd.get(1)?.slice(10, 15), 'WIDE ')
-	assert.equal(lcd.get(3)?.slice(10, 15), 'SHOT ')
+	assert.equal(lcd.get(1)?.slice(50, 55), 'SHOT ')
 	await draw('stripe1-lcd-3', '')
 	assert.equal(lcd.get(1)?.slice(10, 15), 'CAM3 ')
+	await draw('stripe1-row2-10', 'CAM10')
+	assert.equal(lcd.get(3)?.slice(5, 10), 'CAM10')
 })
 
 test('lights a button from its colour', async () => {
@@ -41,4 +43,11 @@ test('lights a button from its colour', async () => {
 	assert.equal(leds.get(0x15), 0b1)
 	await draw('stripe2-row3-1', 'PREVIEW', '#000000')
 	assert.equal(leds.get(0x15), 0)
+})
+
+test('writes the media player LCD as two 40 character lines', async () => {
+	const { lcd, draw } = setup()
+	await draw('media-lcd', 'CLIP 1\nREADY')
+	assert.equal(lcd.get(7)?.slice(0, 6), 'CLIP 1')
+	assert.equal(lcd.get(7)?.slice(40, 45), 'READY')
 })

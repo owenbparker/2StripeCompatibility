@@ -42,8 +42,13 @@ the same surface.
 | 6–7 | Lower stripe, PGM A/C and PREV B/D rows |
 | 8–15 | Right-hand section, two banks of 8 per row |
 
-Each LCD column (2 lines × 5 characters) shows the text of the button directly under it (the A/C or PGM row). To show
-something else, give the control in the LCD row its own text. A line break in the text starts the second line.
+Each stripe has two LCDs (over columns 1–8 and 9–16), each 2 lines of 40 characters. Every column gets 5 characters
+on each line, showing the text of the button directly under it (the A/C or PGM row). To show something else, give the
+control in the LCD row its own text. A line break in the text starts the second line.
+
+The LCD in the media player area is the `media-lcd` control (row 16, column 0): 2 lines of 40 characters.
+
+Every button press is logged as `2-Stripe press: <control>` in Companion's log, which helps when mapping the panel.
 
 Variables: `tbar1`, `tbar2` (0 to 1), `joystick_x`, `joystick_y`, `joystick_z` (-1 to 1).
 
