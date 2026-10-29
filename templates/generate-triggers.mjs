@@ -1,4 +1,5 @@
-// Builds 2stripe-tbar-triggers.companionconfig: two Companion 5.1 triggers that drive the switchers from the T-bars.
+// Builds 2stripe-tbar-triggers.companionconfig: Companion 5.1 triggers for the 2-Stripe page: a startup trigger that
+// creates the custom variables, and two that drive the switchers from the T-bars.
 //   custom:tbar_atem (0-100, from the surface's "T-Bar n position (0 to 100)") -> ATEM M/E 1 T-bar
 //   custom:tbar_vmix (0-255, from the surface's "T-Bar n position (0 to 255)") -> vMix T-bar (mix 1)
 // Run: node templates/generate-triggers.mjs [connections.json] > out.companionconfig
@@ -23,14 +24,33 @@ function trigger(name, sortOrder, variable, connectionId, definitionId, options,
 	}
 }
 
+// Runs once when Companion starts: creates the custom variables the page and T-bar triggers use,
+// and selects vMix mix 1 and ATEM M/E 1 so the stripes work before a select button is pressed.
+const setVar = (name, value) => ({
+	id: id(),
+	definitionId: 'custom_variable_set_value',
+	connectionId: 'internal',
+	options: opts({ name, create: true, value: String(value) }),
+	type: 'action',
+})
+const startup = {
+	type: 'trigger',
+	options: { name: '2-Stripe setup (startup)', enabled: true, sortOrder: 0, notes: '' },
+	actions: [setVar('vmix_mix', 1), setVar('atem_me', 1), setVar('tbar_vmix', 0), setVar('tbar_atem', 0)],
+	condition: [],
+	events: [{ id: id(), type: 'startup', enabled: true, options: { delay: 1000 } }],
+	localVariables: [],
+}
+
 const triggers = {
-	[id()]: trigger('2-Stripe T-bar -> ATEM M/E 1', 0, 'tbar_atem', ATEM, 'tBar', {
+	[id()]: startup,
+	[id()]: trigger('2-Stripe T-bar -> ATEM M/E 1', 1, 'tbar_atem', ATEM, 'tBar', {
 		mixeffect: 0,
 		position: '$(custom:tbar_atem)',
 		fadeDuration: 0,
 		fadeAlgorithm: 'linear',
 	}, 6),
-	[id()]: trigger('2-Stripe T-bar -> vMix mix 1', 1, 'tbar_vmix', VMIX, 'tbar', { value: '$(custom:tbar_vmix)' }, 14),
+	[id()]: trigger('2-Stripe T-bar -> vMix mix 1', 2, 'tbar_vmix', VMIX, 'tbar', { value: '$(custom:tbar_vmix)' }, 14),
 }
 
 const instances = process.argv[2]
