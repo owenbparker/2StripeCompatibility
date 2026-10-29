@@ -1,0 +1,26 @@
+{
+	"$schema": "../node_modules/@companion-surface/base/assets/manifest.schema.json",
+	"type": "surface",
+	"id": "tricaster-2stripe",
+	"name": "TriCaster 2-Stripe",
+	"shortname": "2stripe",
+	"description": "Use a Vizrt/NewTek TriCaster 2-Stripe control panel as a Companion surface",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/owenbparker/2StripeCompatibility.git",
+	"bugs": "https://github.com/owenbparker/2StripeCompatibility/issues",
+	"maintainers": [
+		{
+			"name": "owen",
+			"github": "owenbparker"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../dist/main.js"
+	},
+	"products": ["TriCaster 2-Stripe Control Panel"],
+	"keywords": ["tricaster", "vizrt", "newtek", "control panel"],
+	"usbIds": []
+}
