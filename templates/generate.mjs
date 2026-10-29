@@ -1,7 +1,7 @@
 // Builds 2stripe-vmix-atem.companionconfig: a Companion 5.1 page laid out for the tricaster-2stripe surface (v0.1.5+).
 //   Upper stripe + light grey transition area -> ATEM M/E 1
 //   Lower stripe + dark grey transition area  -> vMix
-//   Right-hand section                         -> ATEM macros, vMix recording/streaming, overlays, media transport
+//   M/E 1-4 buttons pick the ATEM M/E, M/E 5-8 the vMix mix; the rest runs vMix outputs, overlays and media transport
 // Run: node templates/generate.mjs [connections.json] > out.companionconfig
 // connections.json (optional) is the "instances" object from one of your own page exports, so the page
 // points at your existing vMix and ATEM connections. Without it, connections labelled "vmix" and "atem" are assumed.
@@ -69,7 +69,7 @@ function control(text, actions = [], feedbacks = []) {
 					color: v(WHITE),
 					halign: v('center'),
 					valign: v('center'),
-					fontsize: v(14),
+					fontsize: v(24),
 					fontsizeAllowShrink: v(true),
 					font: v('companion-sans'),
 					weight: v('normal'),
@@ -116,28 +116,61 @@ const advanced = (conn, definitionId, o) =>
 		override('box0', 'color', 'bgcolor'),
 	])
 
-const vmixMix = { mix: 0, mixVariable: '' }
+// The ATEM M/E and vMix mix the stripes act on live in two custom variables, set by the M/E buttons.
+// They are created on the first press, so press an M/E button for each switcher once after importing.
+const ATEM_ME = 'atem_me' // 1-4
+const VMIX_MIX = 'vmix_mix' // 1-4
+const vmixMix = { mix: -2, mixVariable: `$(custom:${VMIX_MIX})` }
+const setVar = (name, value) => ({
+	id: id(),
+	definitionId: 'custom_variable_set_value',
+	connectionId: 'internal',
+	options: opts({ name, create: true, value: String(value) }),
+	type: 'action',
+})
+const varIs = (name, value) => ({
+	id: id(),
+	definitionId: 'variable_value',
+	connectionId: 'internal',
+	options: opts({ variable: `custom:${name}`, op: 'eq', value: String(value) }),
+	type: 'feedback',
+	isInverted: v(false),
+})
+const varLit = (name, value) => ({ ...varIs(name, value), styleOverrides: [override('text0', 'color', WHITE), override('box0', 'color', YELLOW)] })
+/** ATEM actions whose M/E is a dropdown: one "if atem_me = n" block per M/E */
+const onAtemMe = (definitionId, o) =>
+	[1, 2, 3, 4].map((me) => ({
+		id: id(),
+		definitionId: 'logic_if',
+		connectionId: 'internal',
+		options: {},
+		children: { condition: [varIs(ATEM_ME, me)], actions: [action(ATEM, definitionId, { mixeffect: me - 1, ...o })], else_actions: [] },
+		type: 'action',
+	}))
 
 // Grid position -> control. Rows/columns follow the tricaster-2stripe v0.1.5 surface layout.
 const controls = {}
 const put = (row, column, c) => ((controls[row] ??= {})[column] = c)
 
+const atemMeButton = (me) => control(`ATEM\nM/E ${me}`, [setVar(ATEM_ME, me)], [varLit(ATEM_ME, me)])
+const vmixMixButton = (mix) => control(`vMix\nMIX ${mix}`, [setVar(VMIX_MIX, mix)], [varLit(VMIX_MIX, mix)])
+for (let n = 1; n <= 4; n++) {
+	// KEY rows: pick the M/E (upper) or mix (lower) the stripe below works on
+	put(0, n - 1, atemMeButton(n))
+	put(4, n - 1, vmixMixButton(n))
+	// Right-hand M/E 1-4 -> ATEM M/E, M/E 5-8 -> vMix mix 1-4
+	put(8, 8 + n, atemMeButton(n))
+	put(9, 8 + n, vmixMixButton(n))
+}
+
+const atemMe = `$(custom:${ATEM_ME})`
 for (let n = 1; n <= 16; n++) {
 	const col = n - 1
-	// Upper stripe: ATEM. KEY row = Aux 1, A/C = program, B/D = preview. A/C text labels the LCD above.
-	put(0, col, control(`AUX\n${n}`, [action(ATEM, 'aux', { aux: 0, input: n })], [lit(ATEM, 'aux_bg', { aux: 0, input: n }, YELLOW)]))
-	put(2, col, control(`$(atem:short_${n})`, [action(ATEM, 'program', { mixeffect: ME, input: n })], [lit(ATEM, 'program_bg', { mixeffect: ME, input: n })]))
-	put(3, col, control(`PVW\n${n}`, [action(ATEM, 'preview', { mixeffect: ME, input: n })], [lit(ATEM, 'preview_bg', { mixeffect: ME, input: n }, GREEN)]))
-
-	// Lower stripe: vMix. KEY row = overlay 1 with this input, PGM = cut to program, PREV = preview.
 	const input = String(n)
-	put(
-		4,
-		col,
-		control(`OVL1\n${n}`, [action(VMIX, 'overlayFunctions', { type: 'OverlayInput', input, overlay: '1', mix: [0], mixVariable: '' })], [
-			advanced(VMIX, 'overlayStatus', { input, overlay: '1', fg: WHITE, bgPreview: GREEN, bgProgram: RED }),
-		]),
-	)
+	// Upper stripe: ATEM on the selected M/E. A/C = program, B/D = preview. A/C text labels the LCD above.
+	put(2, col, control(`$(atem:short_${n})`, [action(ATEM, 'programVariables', { mixeffect: atemMe, input })], [lit(ATEM, 'programVariables', { mixeffect: atemMe, input })]))
+	put(3, col, control(`PVW\n${n}`, [action(ATEM, 'previewVariables', { mixeffect: atemMe, input })], [lit(ATEM, 'previewVariables', { mixeffect: atemMe, input }, GREEN)]))
+	// Lower stripe: vMix on the selected mix. PGM = cut to program, PREV = preview.
 	put(
 		6,
 		col,
@@ -154,21 +187,16 @@ for (let n = 1; n <= 16; n++) {
 	)
 }
 
-// Light grey transition area (rows 8-11): ATEM M/E 1
-const selection = (component, label, selId) =>
-	control(label, [action(ATEM, 'transitionSelectionComponent', { mixeffect: ME, component, mode: 'toggle' })], [
-		lit(ATEM, 'transitionSelection', { mixeffect: ME, matchmethod: 'contains', selection: [selId] }, YELLOW),
-	])
-put(8, 0, selection(0, 'BKGD', 'background'))
-for (let k = 1; k <= 4; k++) put(8, k, selection(k, `KEY ${k}`, `key${k - 1}`))
-const style = (s, label) =>
-	control(label, [action(ATEM, 'transitionStyle', { mixeffect: ME, style: s })], [lit(ATEM, 'transitionStyle', { mixeffect: ME, style: s }, YELLOW)])
-put(9, 0, style(0, 'MIX'))
-put(9, 1, style(2, 'WIPE'))
-put(10, 0, style(3, 'DVE'))
-put(9, 2, control('FTB', [action(ATEM, 'fadeToBlackAuto', { mixeffect: ME })], [lit(ATEM, 'fadeToBlackIsBlack', { mixeffect: ME, state: 'on' })]))
-put(11, 0, control('CUT', [action(ATEM, 'cut', { mixeffect: ME })]))
-put(11, 1, control('AUTO', [action(ATEM, 'auto', { mixeffect: ME })], [lit(ATEM, 'inTransition', { mixeffect: ME })]))
+// Light grey transition area (rows 8-11): ATEM, on the selected M/E
+const selection = (component, label) => control(label, onAtemMe('transitionSelectionComponent', { component, mode: 'toggle' }))
+put(8, 0, selection(0, 'BKGD'))
+for (let k = 1; k <= 4; k++) put(8, k, selection(k, `KEY ${k}`))
+put(9, 0, control('MIX', onAtemMe('transitionStyle', { style: 0 })))
+put(9, 1, control('WIPE', onAtemMe('transitionStyle', { style: 2 })))
+put(10, 0, control('DVE', onAtemMe('transitionStyle', { style: 3 })))
+put(9, 2, control('FTB', onAtemMe('fadeToBlackAuto', {})))
+put(11, 0, control('CUT', onAtemMe('cut', {})))
+put(11, 1, control('AUTO', onAtemMe('auto', {})))
 // KEY 1-4 TAKE/AUTO -> ATEM downstream keyers 1-4
 for (let k = 0; k < 4; k++) {
 	const onAir = () => lit(ATEM, 'dsk_bg', { key: k })
@@ -200,13 +228,6 @@ for (let k = 1; k <= 4; k++) {
 }
 
 // Right-hand section
-// M/E 1-8 -> ATEM macros 1-8, FOLLOW -> stop macro
-for (let m = 1; m <= 8; m++) {
-	put(m <= 4 ? 8 : 9, 8 + ((m - 1) % 4) + 1, control(`MACRO\n${m}`, [action(ATEM, 'macrorun', { macro: m, action: 'run' })], [
-		lit(ATEM, 'macro', { macroIndex: m, state: 'isRunning' }),
-	]))
-}
-put(8, 13, control('MACRO\nSTOP', [action(ATEM, 'macrostop', {})]))
 // MAIN and its neighbours -> vMix outputs
 const vmixToggle = (fn, status, label) =>
 	control(label, [action(VMIX, 'toggleFunctions', { functionID: fn, value: '' })], [lit(VMIX, 'status', { status, value: '' })])
@@ -216,12 +237,8 @@ put(10, 11, vmixToggle('StartStopExternal', 'external', 'EXT'))
 put(11, 9, vmixToggle('StartStopMultiCorder', 'multiCorder', 'MULTI\nCORDER'))
 put(11, 10, vmixToggle('Fullscreen', 'fullscreen', 'FULL\nSCREEN'))
 put(12, 10, control('OVL\nALL OFF', [action(VMIX, 'overlayFunctions', { type: 'OverlayInputAllOff', input: '', overlay: '1', mix: [0], mixVariable: '' })]))
-// LAYER A-D -> ATEM upstream keyers 1-4 on air
-for (let k = 0; k < 4; k++) {
-	put(8 + Math.floor(k / 2), 14 + (k % 2), control(`USK${k + 1}`, [action(ATEM, 'usk', { onair: 'toggle', mixeffect: ME, key: k })], [
-		lit(ATEM, 'usk_bg', { mixeffect: ME, key: k }),
-	]))
-}
+// LAYER A-D -> ATEM upstream keyers 1-4 on the selected M/E
+for (let k = 0; k < 4; k++) put(8 + Math.floor(k / 2), 14 + (k % 2), control(`USK${k + 1}`, onAtemMe('usk', { onair: 'toggle', key: k })))
 // Media player area -> vMix playback of the input in preview, and the playlist
 const media = (definitionId, o, label) => control(label, [action(VMIX, definitionId, { input: '', inputType: true, ...o })])
 put(14, 9, media('videoMark', { functionID: 'MarkIn' }, 'MARK\nIN'))
@@ -237,8 +254,8 @@ put(14, 13, playlist('StartPlayList', 'PLAYLIST\nSTART', true))
 put(14, 14, playlist('StopPlayList', 'PLAYLIST\nSTOP', true))
 put(13, 14, playlist('PreviousPlayListEntry', 'PLAYLIST\nPREV'))
 put(13, 15, playlist('NextPlayListEntry', 'PLAYLIST\nNEXT'))
-// Media LCD: vMix recording time and ATEM M/E 1 sources
-put(14, 11, control('vMix REC $(vmix:recording_hms)\nATEM PGM $(atem:pgm1_input) PVW $(atem:pvw1_input)'))
+// Media LCD: which M/E and mix the stripes are on, and the vMix recording time
+put(14, 11, control(`ATEM M/E $(custom:${ATEM_ME})  vMix MIX $(custom:${VMIX_MIX})\nvMix REC $(vmix:recording_hms)`))
 
 const instances = process.argv[2]
 	? JSON.parse(readFileSync(process.argv[2], 'utf8'))
