@@ -56,12 +56,12 @@ The lights are on/off only. No per-button colour or brightness command has been 
 
 | Banks | Where |
 | --- | --- |
-| `15` + `23` | Stripe 1, top row (left 8, right 8) |
-| `14` + `22` | Stripe 1, second row |
-| `13` + `21` | Stripe 1, third row |
-| `12` + `20` | Stripe 2, top row |
-| `11` + `17` | Stripe 2, second row |
-| `10` + `16` | Stripe 2, third row |
+| `10` + `16` | Upper stripe, KEY row (left 8, right 8) |
+| `11` + `17` | Upper stripe, A/C row |
+| `12` + `20` | Upper stripe, B/D row |
+| `13` + `21` | Lower stripe, KEY row |
+| `14` + `22` | Lower stripe, PGM A/C row (confirmed on hardware) |
+| `15` + `23` | Lower stripe, PREV B/D row (confirmed on hardware) |
 | `30`–`37`, `40`–`47` | Right-hand section (transition, keyer and joystick area). Physical positions not mapped yet. |
 | `48` | Reset by the TriCaster, but no presses seen |
 
@@ -81,6 +81,6 @@ The lights are on/off only. No per-button colour or brightness command has been 
 | `O<n><2048 hex>` | 128×64 monochrome OLED `n` (1 or 2), 1 bit per pixel in SSD1306 page order (8 pages × 128 columns, LSB at the top). The TriCaster draws the stripe name here, for example `MAIN`. |
 | `5 0 RRGGBB` / `6 0 RRGGBB` | Colour of the light on T-bar 1 / T-bar 2, written without spaces, for example `50DC00EE`. |
 
-Each LCD line is 16 cells of 5 characters, one cell above each column of buttons. LCD lines 1 and 3 seem to be stripe 1's
-top and bottom lines, and 2 and 4 stripe 2's. Both stripes showed the same text in the capture, so this pairing still
+Each LCD line is 16 cells of 5 characters, one cell above each column of buttons. LCD lines 1 and 3 are assumed to be the upper
+stripe's top and bottom lines, and 2 and 4 the lower stripe's. Both stripes showed the same text in the capture, so this pairing still
 needs confirming on real hardware.

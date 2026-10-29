@@ -7,6 +7,9 @@ export interface PanelButton {
 	bit: number
 	row: number
 	column: number
+	/** For stripe buttons: which stripe and which of its rows (1 = top) */
+	stripe?: 1 | 2
+	stripeRow?: 1 | 2 | 3
 }
 
 /** One cell of a blue LCD: 2 lines of 5 characters above a column of buttons */
@@ -20,13 +23,14 @@ export interface LcdCell {
 }
 
 /**
- * Each stripe has three rows of 16 buttons, with an LCD between the first and second row.
+ * Each stripe has three rows of 16 buttons (KEY, A/C, B/D), with an LCD between the first and second row.
  * A row is two banks: the left 8 buttons, then the right 8.
- * Rows are listed top to bottom, matching the order they were pressed in the capture.
+ * Stripe 1 is the upper stripe. Rows are listed top to bottom, as confirmed on hardware:
+ * bank 15 is the lower stripe's PREV B/D row and bank 14 its PGM A/C row.
  */
 const STRIPES = [
-	{ stripe: 1, rows: [[0x15, 0x23], [0x14, 0x22], [0x13, 0x21]], lcdLines: [1, 3] },
-	{ stripe: 2, rows: [[0x12, 0x20], [0x11, 0x17], [0x10, 0x16]], lcdLines: [2, 4] },
+	{ stripe: 1, rows: [[0x10, 0x16], [0x11, 0x17], [0x12, 0x20]], lcdLines: [1, 3] },
+	{ stripe: 2, rows: [[0x13, 0x21], [0x14, 0x22], [0x15, 0x23]], lcdLines: [2, 4] },
 ] as const
 
 /** Lines (protocol display numbers) that make up a stripe's LCD, top line first */
@@ -52,7 +56,15 @@ function buildButtons(): PanelButton[] {
 			banks.forEach((bank, half) => {
 				for (let bit = 0; bit < 8; bit++) {
 					const column = half * 8 + bit
-					buttons.push({ id: `stripe${stripe}-row${rowIndex + 1}-${column + 1}`, bank, bit, row, column })
+					buttons.push({
+						id: `stripe${stripe}-row${rowIndex + 1}-${column + 1}`,
+						bank,
+						bit,
+						row,
+						column,
+						stripe,
+						stripeRow: (rowIndex + 1) as 1 | 2 | 3,
+					})
 				}
 			})
 		})
@@ -105,8 +117,8 @@ export type AnalogInputId = (typeof ANALOG_INPUTS)[number]['id']
 export function buildSurfaceLayout(): SurfaceSchemaLayoutDefinition {
 	return {
 		stylePresets: {
-			// Buttons only have an on/off light, so a colour is all they need
-			default: { colors: 'hex' },
+			// Buttons only have an on/off light. Their text is used to label the LCD above them.
+			default: { colors: 'hex', text: true },
 			lcd: { text: true },
 		},
 		controls: {

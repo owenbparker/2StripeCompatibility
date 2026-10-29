@@ -11,9 +11,11 @@ test('every control has a unique id and grid position', () => {
 })
 
 test('maps stripe banks onto rows of 16', () => {
-	assert.equal(findButton(0x15, 0)?.id, 'stripe1-row1-1')
-	assert.equal(findButton(0x23, 7)?.id, 'stripe1-row1-16')
-	assert.equal(findButton(0x10, 0)?.id, 'stripe2-row3-1')
+	// Confirmed on hardware: bank 15 is the lower stripe's bottom row, bank 14 the row above it
+	assert.equal(findButton(0x15, 0)?.id, 'stripe2-row3-1')
+	assert.equal(findButton(0x14, 1)?.id, 'stripe2-row2-2')
+	assert.equal(findButton(0x23, 7)?.id, 'stripe2-row3-16')
+	assert.equal(findButton(0x10, 0)?.id, 'stripe1-row1-1')
 	assert.equal(findButton(0x37, 4)?.id, 'bank37-5')
 	assert.equal(findButton(0x99, 0), undefined)
 })

@@ -17,6 +17,12 @@ export class TwoStripeSurface implements SurfaceInstance {
 	readonly #panel: TwoStripeConnection
 	readonly #leds = new Map<number, number>()
 	readonly #lcds = { 1: new LcdBuffer(), 2: new LcdBuffer() }
+	/**
+	 * Text for each LCD column, per stripe. A column shows the text of its LCD-row control if it has any,
+	 * otherwise the text of the button directly under the LCD.
+	 */
+	readonly #lcdText = { 1: new Array<string>(16).fill(''), 2: new Array<string>(16).fill('') }
+	readonly #belowText = { 1: new Array<string>(16).fill(''), 2: new Array<string>(16).fill('') }
 
 	constructor(surfaceId: string, panel: TwoStripeConnection, context: SurfaceContext) {
 		this.surfaceId = surfaceId
@@ -52,6 +58,8 @@ export class TwoStripeSurface implements SurfaceInstance {
 			this.#panel.setLeds(bank, 0)
 		}
 		for (const stripe of [1, 2] as const) {
+			this.#lcdText[stripe].fill('')
+			this.#belowText[stripe].fill('')
 			this.#lcds[stripe].clear()
 			this.#flushLcd(stripe)
 		}
@@ -68,13 +76,25 @@ export class TwoStripeSurface implements SurfaceInstance {
 				this.#leds.set(button.bank, after)
 				this.#panel.setLeds(button.bank, after)
 			}
+			// The row directly under the LCD labels it
+			if (button.stripe && button.stripeRow === 2) {
+				this.#belowText[button.stripe][button.column] = drawProps.text ?? ''
+				this.#updateLcdCell(button.stripe, button.column)
+			}
 			return
 		}
 
 		const cell = lcdCellsById.get(drawProps.controlId)
-		if (cell && this.#lcds[cell.stripe].setCell(cell.index, drawProps.text)) {
-			this.#flushLcd(cell.stripe)
+		if (cell) {
+			this.#lcdText[cell.stripe][cell.index] = drawProps.text ?? ''
+			this.#updateLcdCell(cell.stripe, cell.index)
 		}
+	}
+
+	#updateLcdCell(stripe: 1 | 2, index: number): void {
+		const own = this.#lcdText[stripe][index]
+		const text = own.trim() ? own : this.#belowText[stripe][index]
+		if (this.#lcds[stripe].setCell(index, text)) this.#flushLcd(stripe)
 	}
 
 	async showStatus(_signal: AbortSignal, _cardGenerator: CardGenerator, statusMessage: string): Promise<void> {

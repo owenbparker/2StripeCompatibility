@@ -13,7 +13,7 @@ A [Bitfocus Companion](https://bitfocus.io/companion) surface module that lets t
 | Finding panels on the network | Done (UDP discovery), or enter the IP by hand |
 | Button presses | Done for every button pressed in the capture |
 | Button lights | Done (on/off: any Companion colour lights the button) |
-| Blue LCD text | Done, using the LCD row of the Companion grid |
+| Blue LCD text | Done, labelled from the button row under each LCD |
 | T-bars and joystick | Done, as surface variables |
 | Small OLED screens, T-bar lights, brightness | Not yet (cleared on connect) |
 | Physical layout of the right-hand section | Provisional |
@@ -34,11 +34,16 @@ the same surface.
 
 | Grid rows | Panel |
 | --- | --- |
-| 0 | Stripe 1, top button row (16 buttons) |
-| 1 | Stripe 1 LCD: text you give these controls in Companion appears in the LCD above that column (2 lines × 5 characters; a line break starts the second line) |
-| 2–3 | Stripe 1, second and third button rows |
-| 4–7 | Stripe 2, same as rows 0–3 |
+| 0 | Upper stripe, KEY row (16 buttons) |
+| 1 | Upper stripe LCD |
+| 2–3 | Upper stripe, A/C and B/D rows |
+| 4 | Lower stripe, KEY row |
+| 5 | Lower stripe LCD |
+| 6–7 | Lower stripe, PGM A/C and PREV B/D rows |
 | 8–15 | Right-hand section, two banks of 8 per row |
+
+Each LCD column (2 lines × 5 characters) shows the text of the button directly under it (the A/C or PGM row). To show
+something else, give the control in the LCD row its own text. A line break in the text starts the second line.
 
 Variables: `tbar1`, `tbar2` (0 to 1), `joystick_x`, `joystick_y`, `joystick_z` (-1 to 1).
 
