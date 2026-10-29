@@ -40,13 +40,19 @@ the same surface.
 | 4 | Lower stripe, KEY row |
 | 5 | Lower stripe LCD |
 | 6–7 | Lower stripe, PGM A/C and PREV B/D rows |
-| 8–15 | Right-hand section, two banks of 8 per row |
+| 8–11, columns 0–7 | Light grey transition area (upper T-bar): BKGD, KEY 1–4, FADE, TRANS, FTB, EFFCT, TAKE, AUTO, and KEY 1–4 TAKE/AUTO in columns 6–7 |
+| 12–15, columns 0–7 | Dark grey transition area (lower T-bar), same layout |
+| 8–15, columns 9–15 | M/E 1–8, FOLLOW, MAIN, POS/POT/CROP/FOCUS, SHTL, RESET, LAYER A–D and 1–4, LVSET, MEDIA 1–4, SND, presets, MARK IN/OUT, media LCD, LOOP, PLYLST, SHOW, AUTO PLAY, transport |
+| 16–18 | Bits not seen in any press yet (`bank<nn>-<bit>`) |
+
+The exact control ids are in `src/panel/controls.ts`. `templates/2stripe-vmix-atem.companionconfig` is a ready-made
+page: upper stripe and light grey area run an ATEM, lower stripe, dark grey area and T-bar run vMix.
 
 Each stripe has two LCDs (over columns 1–8 and 9–16), each 2 lines of 40 characters. Every column gets 5 characters
 on each line, showing the text of the button directly under it (the A/C or PGM row). To show something else, give the
 control in the LCD row its own text. A line break in the text starts the second line.
 
-The LCD in the media player area is the `media-lcd` control (row 16, column 0): 2 lines of 40 characters.
+The LCD in the media player area is the `media-lcd` control (row 14, column 11): 2 lines of 40 characters.
 
 Every button press is logged as `2-Stripe press: <control>` in Companion's log, which helps when mapping the panel.
 
