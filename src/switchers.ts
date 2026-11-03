@@ -266,6 +266,10 @@ export class AtemTbar {
 	move(lever: number): void {
 		// Like vMix, a transition completes at either end: after one finishes at the top, pulling the lever back down runs the next
 		this.#lever = lever
+		// Between transitions, whichever end the lever is nearest counts as 0%, going by what the ATEM reports. So a
+		// transition that was abandoned part way, or finished by AUTO or CUT, can't leave the lever running backwards.
+		const position = this.#atem.state?.video.mixEffects[this.#me - 1]?.transitionPosition
+		if (position && !position.inTransition) this.#follower = new TbarFollower(lever > 0.5)
 		this.#out.push(Math.round(this.#follower.position(lever) * 10000))
 	}
 
@@ -273,6 +277,9 @@ export class AtemTbar {
 		void this.#atem.destroy().catch(() => {})
 	}
 }
+
+/** How close to either end of its travel counts as the end */
+const SNAP = 0.04
 
 /** The two switcher T-bars for one panel, rebuilt whenever the surface's settings change */
 export class SwitcherLinks {
@@ -320,8 +327,8 @@ export class SwitcherLinks {
 	}
 
 	tbar(id: 'tbar1' | 'tbar2', raw: number): void {
-		// Snap the last couple of steps at each end, so the lever reliably reaches 0% and 100%
-		const lever = raw <= 0.01 ? 0 : raw >= 0.99 ? 1 : raw
+		// Snap the last few percent at each end, so a lever pushed not quite all the way still completes the transition
+		const lever = raw <= SNAP ? 0 : raw >= 1 - SNAP ? 1 : raw
 		this.#lever[id] = lever
 		if (!this.#config) return
 		if (id === this.#config.vmixTbar) this.#vmix?.move(lever)
