@@ -10,7 +10,7 @@ A [Bitfocus Companion](https://bitfocus.io/companion) surface module that lets t
 
 | Feature | State |
 | --- | --- |
-| Finding panels on the network | Done (UDP discovery), or enter the IP by hand |
+| Finding panels on the network | Done: found and connected automatically, or enter the IP by hand |
 | Button presses | Done for every button pressed in the capture |
 | Button lights | Done (on/off: any Companion colour lights the button) |
 | Blue LCD text | Done, labelled from the button row under each LCD |
@@ -23,12 +23,16 @@ A [Bitfocus Companion](https://bitfocus.io/companion) surface module that lets t
 1. Connect the panel to the network or straight to the Companion computer. **Close TriCaster's connection to the panel
    first.** The panel expects one controller at a time.
 2. Install the module into Companion 5.1 or newer (see Development below).
-3. In Companion's Surfaces page, add a remote surface of type TriCaster 2-Stripe. The panel should be listed
-   automatically. If it isn't, enter its IP address, or leave the address empty to use the first panel found.
+3. Add the TriCaster 2-Stripe surface integration. The module searches the network for panels every 10 seconds and
+   connects any it finds by itself, the way the ATEM module finds switchers. There is no address to enter.
 
-The panel picks its own `169.254.x.x` address when there is no DHCP server, and it can change after a restart. Once
-connected, the module remembers the panel by its MAC address and follows it to its new address, and Companion keeps
-the same surface.
+The panel picks its own `169.254.x.x` address when there is no DHCP server, and it can change after a restart. The
+surface id is based on the panel's MAC address, so a panel that comes back on a new address after a reboot is
+reconnected as the same surface, with the same page. If the computer starts before its network is ready, the search
+keeps retrying until it is.
+
+A remote surface connection with a fixed IP still works, for networks where the search can't reach the panel. A panel
+with a remote connection is left to that connection and not connected automatically.
 
 ### Grid layout
 

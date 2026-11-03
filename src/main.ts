@@ -6,6 +6,8 @@ import type {
 	SomeCompanionInputField,
 	SurfaceContext,
 	SurfacePlugin,
+	SurfacePluginDetection,
+	SurfacePluginDetectionEvents,
 	SurfacePluginRemote,
 	SurfacePluginRemoteEvents,
 } from '@companion-surface/base'
@@ -98,6 +100,14 @@ class TwoStripeRemote extends EventEmitter<SurfacePluginRemoteEvents<PluginInfo>
 		return [...this.#links.keys()]
 	}
 
+	/** Whether a manually added remote connection is responsible for this panel, so auto-detection should leave it alone */
+	claims(mac: string, ip: string): boolean {
+		for (const link of this.#links.values()) {
+			if (link.mac === mac || link.host === ip || link.host === '') return true
+		}
+		return false
+	}
+
 	readonly #links = new Map<string, PanelLink>()
 
 	/**
@@ -165,17 +175,111 @@ class TwoStripeRemote extends EventEmitter<SurfacePluginRemoteEvents<PluginInfo>
 	}
 }
 
+/**
+ * Finds panels on the network by itself and hands them to Companion, the way the ATEM module finds switchers.
+ * No address needs to be entered, and when a panel comes back (after a reboot, or on a new link-local address)
+ * it is connected again and Companion gives it the same surface, because the surface id is based on its MAC.
+ */
+class TwoStripeDetection extends EventEmitter<SurfacePluginDetectionEvents<PluginInfo>> implements SurfacePluginDetection<PluginInfo> {
+	/** MACs with a connection being made or open */
+	readonly #active = new Set<string>()
+	/** MACs Companion chose not to open, left alone until they drop off the network */
+	readonly #rejected = new Set<string>()
+	#started = false
+
+	constructor(readonly remote: TwoStripeRemote) {
+		super()
+		remote.discovery.on('seen', (panel) => void this.#tryOpen(panel.mac, panel.ip))
+		remote.discovery.on('lost', (mac) => this.#rejected.delete(mac))
+	}
+
+	start(): void {
+		this.#started = true
+	}
+
+	async triggerScan(): Promise<void> {
+		this.#rejected.clear()
+		this.remote.discovery.probeNow()
+	}
+
+	rejectSurface(surfaceInfo: DetectionSurfaceInfo<PluginInfo>): void {
+		const mac = surfaceInfo.deviceHandle
+		this.#rejected.add(mac)
+		void this.#close(mac)
+	}
+
+	async stop(): Promise<void> {
+		this.#started = false
+		await Promise.all([...this.#active].map((mac) => this.#close(mac)))
+	}
+
+	async #tryOpen(mac: string, ip: string): Promise<void> {
+		if (!this.#started || this.#active.has(mac) || this.#rejected.has(mac)) return
+		if (this.remote.claims(mac, ip)) return
+		this.#active.add(mac)
+
+		const panel = new TwoStripeConnection(ip)
+		try {
+			await panel.connect()
+		} catch (e) {
+			console.warn(`2-Stripe ${ip}: ${e instanceof Error ? e.message : e}`)
+			this.#active.delete(mac)
+			return
+		}
+		if (!this.#started || !this.#active.has(mac)) {
+			await panel.close()
+			return
+		}
+
+		const connectionId = detectedConnectionId(mac)
+		this.remote.panels.set(connectionId, panel)
+		panel.once('disconnected', (err) => {
+			console.warn(`2-Stripe ${ip}: ${err.message}`)
+			this.remote.panels.delete(connectionId)
+			this.#active.delete(mac)
+			// Let Companion release the surface; the next search reply connects it again
+			this.emit('surfacesRemoved', [mac])
+		})
+
+		console.log(`2-Stripe connected automatically: ${ip} (${mac})`)
+		this.emit('surfacesAdded', [
+			{
+				surfaceId: `2stripe-${mac}`,
+				deviceHandle: mac,
+				description: 'TriCaster 2-Stripe',
+				pluginInfo: { connectionId },
+			},
+		])
+	}
+
+	async #close(mac: string): Promise<void> {
+		this.#active.delete(mac)
+		const connectionId = detectedConnectionId(mac)
+		const panel = this.remote.panels.get(connectionId)
+		this.remote.panels.delete(connectionId)
+		await panel?.close()
+	}
+}
+
+function detectedConnectionId(mac: string): string {
+	return `detected:${mac}`
+}
+
 const remote = new TwoStripeRemote()
+const detection = new TwoStripeDetection(remote)
 
 const plugin: SurfacePlugin<PluginInfo> = {
+	detection,
 	remote,
 
 	async init(): Promise<void> {
+		detection.start()
 		remote.discovery.start()
 	},
 
 	async destroy(): Promise<void> {
 		remote.discovery.stop()
+		await detection.stop()
 		await remote.stopConnections(remote.connectionIds())
 	},
 
