@@ -161,7 +161,6 @@ export class VmixTbar {
 }
 
 export class AtemTbar {
-	#follower = new TbarFollower()
 	#me = 1
 	#lastWarning = 0
 	readonly #atem = new Atem({ disableMultithreaded: true })
@@ -196,10 +195,8 @@ export class AtemTbar {
 	}
 
 	/** Follow the M/E chosen with the panel's 1-4 buttons. The lever's current end becomes 0% for the new M/E. */
-	select(me: number, lever: number): void {
-		if (me === this.#me) return
+	select(me: number, _lever?: number): void {
 		this.#me = me
-		this.#follower = new TbarFollower(lever > 0.5)
 	}
 
 	#lastNote = 0
@@ -220,7 +217,8 @@ export class AtemTbar {
 	}
 
 	move(lever: number): void {
-		this.#out.push(Math.round(this.#follower.position(lever) * 10000))
+		// The ATEM tracks which way the handle runs itself (like its own panels), so it gets the lever as it is
+		this.#out.push(Math.round(lever * 10000))
 	}
 
 	close(): void {
