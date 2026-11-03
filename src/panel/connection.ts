@@ -128,6 +128,11 @@ export class TwoStripeConnection extends EventEmitter<PanelConnectionEvents> {
 		this.#sendLines([encodeLcd(display, text)])
 	}
 
+	/** Show a 128x64 bitmap (SSD1306 page order) on OLED 1 or 2 */
+	setOled(index: number, data: Uint8Array): void {
+		this.#sendLines([encodeOled(index, data)])
+	}
+
 	setTbarLight(index: 1 | 2, r: number, g: number, b: number): void {
 		this.#sendLines([encodeTbarLight(index, r, g, b)])
 	}
@@ -188,6 +193,10 @@ export class TwoStripeConnection extends EventEmitter<PanelConnectionEvents> {
 				break
 			case 'goodbye':
 				this.#fail(new Error('2-Stripe panel ended the session'))
+				break
+			case 'unknown':
+				// Logged so controls that aren't decoded yet (like the RATE knobs) can be found in Companion's log
+				console.log(`2-Stripe unknown message: ${msg.line}`)
 				break
 			default:
 				break

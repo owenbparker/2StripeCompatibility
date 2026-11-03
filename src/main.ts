@@ -15,6 +15,7 @@ import { ANALOG_INPUTS, buildSurfaceLayout } from './panel/controls.ts'
 import { TwoStripeConnection } from './panel/connection.ts'
 import { PanelDiscovery } from './panel/discovery.ts'
 import { TwoStripeSurface } from './instance.ts'
+import { SWITCHER_CONFIG_FIELDS } from './switchers.ts'
 
 const RETRY_INTERVAL_MS = 5000
 
@@ -187,8 +188,11 @@ class TwoStripeDetection extends EventEmitter<SurfacePluginDetectionEvents<Plugi
 	readonly #rejected = new Set<string>()
 	#started = false
 
-	constructor(readonly remote: TwoStripeRemote) {
+	readonly remote: TwoStripeRemote
+
+	constructor(remote: TwoStripeRemote) {
 		super()
+		this.remote = remote
 		remote.discovery.on('seen', (panel) => void this.#tryOpen(panel.mac, panel.ip))
 		remote.discovery.on('lost', (mac) => this.#rejected.delete(mac))
 	}
@@ -295,7 +299,7 @@ const plugin: SurfacePlugin<PluginInfo> = {
 				transferVariables: ANALOG_INPUTS.map((v) => ({ id: v.id, type: 'input' as const, name: v.name })),
 				pincodeMap: null,
 				location: panel.host,
-				configFields: null,
+				configFields: SWITCHER_CONFIG_FIELDS,
 			},
 		}
 	},

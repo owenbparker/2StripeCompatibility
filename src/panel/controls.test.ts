@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildSurfaceLayout, findButton, LCD_CELLS, PANEL_BUTTONS } from './controls.ts'
+import { buildSurfaceLayout, findButton, LCD_CELLS, OLEDS, PANEL_BUTTONS } from './controls.ts'
 
 test('every control has a unique id and grid position', () => {
 	const layout = buildSurfaceLayout()
 	const ids = Object.keys(layout.controls)
-	assert.equal(ids.length, PANEL_BUTTONS.length + LCD_CELLS.length + 1)
+	assert.equal(ids.length, PANEL_BUTTONS.length + LCD_CELLS.length + 1 + OLEDS.length)
 	const positions = new Set(Object.values(layout.controls).map((c) => `${c.row},${c.column}`))
 	assert.equal(positions.size, ids.length)
 })

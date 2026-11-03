@@ -62,6 +62,18 @@ The LCD in the media player area is the `media-lcd` control (row 14, column 11):
 
 Every button press is logged as `2-Stripe press: <control>` in Companion's log, which helps when mapping the panel.
 
+**T-bars.** The module moves the switchers' T-bars itself: one lever drives vMix (mix 1, through vMix's TCP API on port
+8099) and the other an ATEM (M/E 1). Set the vMix computer's address, the ATEM's address, and which lever is vMix's in
+the surface's settings in Companion. Like a real switcher, after a transition completes the next one runs by moving the
+lever back the other way.
+
+**Small displays.** The 128x64 displays left of each stripe's LCD are the controls `stripe1-oled` and `stripe2-oled`, at
+grid rows 1 and 5, column 16 (just right of the LCD columns). Their text is drawn large when it fits in 2 lines of 8
+characters.
+
+**RATE knobs.** Not decoded yet. Messages from the panel that the module doesn't understand are written to Companion's
+log as `2-Stripe unknown message: ...`, to find them.
+
 Variables: `tbar1`, `tbar2` (0 to 1), the same scaled for vMix as `tbar1_255`/`tbar2_255` and for ATEM as
 `tbar1_100`/`tbar2_100`, and `joystick_x`, `joystick_y`, `joystick_z` (-1 to 1).
 

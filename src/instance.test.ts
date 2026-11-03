@@ -8,9 +8,11 @@ import type { TwoStripeConnection } from './panel/connection.ts'
 function setup() {
 	const lcd = new Map<number, string>()
 	const leds = new Map<number, number>()
+	const oleds = new Map<number, Uint8Array>()
 	const panel = Object.assign(new EventEmitter(), {
 		setLeds: (bank: number, lit: number) => leds.set(bank, lit),
 		setLcdLine: (display: number, text: string) => lcd.set(display, text),
+		setOled: (index: number, data: Uint8Array) => oleds.set(index, data),
 		close: async () => {},
 	}) as unknown as TwoStripeConnection
 	const variables = new Map<string, unknown>()
@@ -18,7 +20,7 @@ function setup() {
 	const surface = new TwoStripeSurface('test', panel, context)
 	const draw = (controlId: string, text: string, color = '#000000') =>
 		surface.draw(new AbortController().signal, { controlId, text, color, pressed: false })
-	return { lcd, leds, draw, panel, variables }
+	return { lcd, leds, oleds, draw, panel, variables }
 }
 
 test('labels the LCD with the text of the button under it', async () => {
@@ -35,8 +37,8 @@ test('text on the LCD row takes priority over the button under it', async () => 
 	assert.equal(lcd.get(1)?.slice(50, 55), 'SHOT ')
 	await draw('stripe1-lcd-3', '')
 	assert.equal(lcd.get(1)?.slice(10, 15), 'CAM3 ')
-	await draw('stripe1-row2-10', 'CAM10')
-	assert.equal(lcd.get(3)?.slice(5, 10), 'CAM10')
+	await draw('stripe1-row2-10', 'CAM9')
+	assert.equal(lcd.get(3)?.slice(5, 10), 'CAM9 ')
 })
 
 test('lights a button from its colour', async () => {
@@ -60,4 +62,10 @@ test('reports T-bar positions scaled for vMix and ATEM', () => {
 	assert.equal(variables.get('tbar2'), 0.5)
 	assert.equal(variables.get('tbar2_255'), 128)
 	assert.equal(variables.get('tbar2_100'), 50)
+})
+
+test('draws text on the small display beside the LCD', async () => {
+	const { oleds, draw } = setup()
+	await draw('stripe1-oled', 'vMix')
+	assert.ok(oleds.get(1)?.some((b) => b !== 0))
 })

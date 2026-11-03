@@ -2,8 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { LcdBuffer, textToCellLines } from './lcd.ts'
 
-test('wraps long text onto the second line', () => {
-	assert.deepEqual(textToCellLines('CAMERA1'), ['CAMER', 'A1   '])
+test('wraps long text onto the second line, keeping a space between columns', () => {
+	assert.deepEqual(textToCellLines('CAMERA1'), ['CAME ', 'RA1  '])
+	assert.deepEqual(textToCellLines('M/E 1'), ['M/E  ', '1    '])
+	assert.deepEqual(textToCellLines('ME 1 - ATEM'), ['ME 1 ', '-    '])
 })
 
 test('respects explicit line breaks', () => {

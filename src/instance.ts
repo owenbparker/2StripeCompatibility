@@ -1,9 +1,11 @@
 import type { CardGenerator, SurfaceContext, SurfaceDrawProps, SurfaceInstance } from '@companion-surface/base'
 import { parseColor } from './panel/color.ts'
 import type { TwoStripeConnection } from './panel/connection.ts'
-import { AUX_LCD, findButton, LCD_CELLS, lcdDisplaysForStripe, PANEL_BUTTONS } from './panel/controls.ts'
+import { AUX_LCD, findButton, LCD_CELLS, lcdDisplaysForStripe, OLEDS, PANEL_BUTTONS } from './panel/controls.ts'
+import { textToOled } from './panel/oled.ts'
 import { LcdBuffer, textToDisplay } from './panel/lcd.ts'
 import { AUX_DISPLAY } from './panel/protocol.ts'
+import { parseSwitcherConfig, SwitcherLinks } from './switchers.ts'
 
 const buttonsById = new Map(PANEL_BUTTONS.map((b) => [b.id, b]))
 const lcdCellsById = new Map(LCD_CELLS.map((c) => [c.id, c]))
@@ -24,6 +26,8 @@ export class TwoStripeSurface implements SurfaceInstance {
 	 */
 	readonly #lcdText = { 1: new Array<string>(16).fill(''), 2: new Array<string>(16).fill('') }
 	readonly #belowText = { 1: new Array<string>(16).fill(''), 2: new Array<string>(16).fill('') }
+	/** Direct links to vMix and the ATEM for the T-bars, set up from the surface's settings */
+	readonly #switchers = new SwitcherLinks()
 
 	constructor(surfaceId: string, panel: TwoStripeConnection, context: SurfaceContext) {
 		this.surfaceId = surfaceId
@@ -42,6 +46,7 @@ export class TwoStripeSurface implements SurfaceInstance {
 		panel.on('analog', (id, value) => {
 			context.sendVariableValue(id, value)
 			if (id === 'tbar1' || id === 'tbar2') {
+				this.#switchers.tbar(id, value)
 				context.sendVariableValue(`${id}_255`, Math.round(value * 255))
 				context.sendVariableValue(`${id}_100`, Math.round(value * 100))
 			}
@@ -51,7 +56,12 @@ export class TwoStripeSurface implements SurfaceInstance {
 
 	async init(): Promise<void> {}
 
+	async updateConfig(config: Record<string, unknown>): Promise<void> {
+		this.#switchers.update(parseSwitcherConfig(config))
+	}
+
 	async close(): Promise<void> {
+		this.#switchers.close()
 		await this.#panel.close()
 	}
 
@@ -95,6 +105,12 @@ export class TwoStripeSurface implements SurfaceInstance {
 
 		if (drawProps.controlId === AUX_LCD.id) {
 			this.#panel.setLcdLine(AUX_DISPLAY, textToDisplay(drawProps.text))
+			return
+		}
+
+		const oled = OLEDS.find((o) => o.id === drawProps.controlId)
+		if (oled) {
+			this.#panel.setOled(oled.index, textToOled(drawProps.text))
 			return
 		}
 

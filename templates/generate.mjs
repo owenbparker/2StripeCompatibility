@@ -137,7 +137,7 @@ const varIs = (name, value) => ({
 	isInverted: v(false),
 })
 const varLit = (name, value) => ({ ...varIs(name, value), styleOverrides: [override('text0', 'color', WHITE), override('box0', 'color', YELLOW)] })
-// Grid position -> control. Rows/columns follow the tricaster-2stripe v0.1.7 surface layout.
+// Grid position -> control. Rows/columns follow the tricaster-2stripe v0.1.10 surface layout.
 const controls = {}
 const put = (row, column, c) => ((controls[row] ??= {})[column] = c)
 
@@ -172,6 +172,10 @@ for (let n = 1; n <= 16; n++) {
 	put(6, col, control(`$(atem:short_${n})`, [action(ATEM, 'programVariables', { mixeffect: atemMe, input })], [lit(ATEM, 'programVariables', { mixeffect: atemMe, input })]))
 	put(7, col, control(`PVW\n${n}`, [action(ATEM, 'previewVariables', { mixeffect: atemMe, input })], [lit(ATEM, 'previewVariables', { mixeffect: atemMe, input }, GREEN)]))
 }
+
+// Small displays left of each stripe's LCD: which switcher and mix / M/E the stripe is on
+put(1, 16, control(`vMix\nMIX $(custom:${VMIX_MIX})`))
+put(5, 16, control(`ATEM\nM/E $(custom:${ATEM_ME})`))
 
 // 1 2 3 4 above each middle cluster: pick the vMix mix (upper) or ATEM M/E (lower)
 for (let n = 1; n <= 4; n++) {
@@ -276,7 +280,7 @@ const page = {
 		id: id(),
 		name: '2-Stripe vMix + ATEM',
 		controls,
-		gridSize: { minColumn: 0, maxColumn: 15, minRow: 0, maxRow: 18 },
+		gridSize: { minColumn: 0, maxColumn: 16, minRow: 0, maxRow: 18 },
 		pageVariables: [],
 	},
 	instances,

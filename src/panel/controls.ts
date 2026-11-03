@@ -205,6 +205,15 @@ export const PANEL_BUTTONS = buildButtons()
 
 /** The LCD in the media player area, between MARK OUT and LOOP */
 export const AUX_LCD = { id: 'media-lcd', row: OTHER_START_ROW + 6, column: 11 }
+
+/**
+ * The small 128x64 displays left of each stripe's LCD (the TriCaster shows the stripe name there).
+ * They sit on the LCD rows, one column past the 16 buttons. OLED 1 is assumed to be the upper stripe's.
+ */
+export const OLEDS = [
+	{ id: 'stripe1-oled', index: 1, row: 1, column: 16 },
+	{ id: 'stripe2-oled', index: 2, row: STRIPE_HEIGHT + 1, column: 16 },
+] as const
 export const LCD_CELLS = buildLcdCells()
 
 const buttonsByBankBit = new Map(PANEL_BUTTONS.map((b) => [b.bank * 8 + b.bit, b]))
@@ -239,6 +248,7 @@ export function buildSurfaceLayout(): SurfaceSchemaLayoutDefinition {
 			...Object.fromEntries(PANEL_BUTTONS.map((b) => [b.id, { row: b.row, column: b.column }])),
 			...Object.fromEntries(LCD_CELLS.map((c) => [c.id, { row: c.row, column: c.column, stylePreset: 'lcd' }])),
 			[AUX_LCD.id]: { row: AUX_LCD.row, column: AUX_LCD.column, stylePreset: 'lcd' },
+			...Object.fromEntries(OLEDS.map((o) => [o.id, { row: o.row, column: o.column, stylePreset: 'lcd' }])),
 		},
 	}
 }
