@@ -196,7 +196,7 @@ export class TwoStripeConnection extends EventEmitter<PanelConnectionEvents> {
 				break
 			case 'unknown':
 				// Logged so controls that aren't decoded yet (like the RATE knobs) can be found in Companion's log
-				console.log(`2-Stripe unknown message: ${msg.line}`)
+				console.warn(`2-Stripe unknown message: ${msg.line}`)
 				break
 			default:
 				break

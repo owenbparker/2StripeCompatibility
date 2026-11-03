@@ -170,14 +170,14 @@ export class AtemTbar {
 
 	constructor(host: string) {
 		this.host = host
-		console.log(`2-Stripe connecting to ATEM ${host}`)
+		console.warn(`2-Stripe connecting to ATEM ${host}`)
 		this.#atem.on('error', (e) => console.warn(`2-Stripe ATEM ${host}: ${e}`))
-		this.#atem.on('connected', () => console.log(`2-Stripe connected to ATEM ${host}`))
+		this.#atem.on('connected', () => console.warn(`2-Stripe connected to ATEM ${host}`))
 		this.#atem.on('disconnected', () => console.warn(`2-Stripe lost the ATEM ${host}`))
 		this.#atem.on('info', (m) => {
 			// 'reconnect' repeats every second while the ATEM doesn't answer; keep the log readable
 			if (m === 'reconnect') this.#warn(`still trying to reach the ATEM ${host}`)
-			else console.log(`2-Stripe ATEM ${host}: ${m}`)
+			else console.warn(`2-Stripe ATEM ${host}: ${m}`)
 		})
 		void this.#atem.connect(host).catch((e) => console.warn(`2-Stripe ATEM ${host}: ${e}`))
 		this.#out = new LatestOnly(async (value) => {
@@ -188,6 +188,7 @@ export class AtemTbar {
 			const me = this.#me - 1
 			try {
 				await this.#atem.setTransitionPosition(value, me)
+				this.#note(`ATEM ${host} took T-bar ${Math.round(value / 100)}% on M/E ${this.#me}`)
 			} catch (e) {
 				this.#warn(`ATEM ${host} refused the T-bar on M/E ${this.#me}: ${e}`)
 			}
@@ -199,6 +200,15 @@ export class AtemTbar {
 		if (me === this.#me) return
 		this.#me = me
 		this.#follower = new TbarFollower(lever > 0.5)
+	}
+
+	#lastNote = 0
+	/** A progress line at most once a second while the lever moves */
+	#note(message: string): void {
+		const now = Date.now()
+		if (now - this.#lastNote < 1000) return
+		this.#lastNote = now
+		console.warn(`2-Stripe ${message}`)
 	}
 
 	/** At most one warning every few seconds, so a moving lever doesn't flood the log */
@@ -227,6 +237,7 @@ export class SwitcherLinks {
 	#vmixMix = 1
 	#atemMe = 1
 	readonly #lever = { tbar1: 0, tbar2: 0 }
+	#lastLeverLog = 0
 
 	update(config: SwitcherConfig): void {
 		if (config.vmixHost !== this.#config?.vmixHost) {
@@ -264,6 +275,12 @@ export class SwitcherLinks {
 
 	tbar(id: 'tbar1' | 'tbar2', lever: number): void {
 		this.#lever[id] = lever
+		const now = Date.now()
+		if (now - this.#lastLeverLog > 2000) {
+			this.#lastLeverLog = now
+			const target = !this.#config ? 'nothing yet' : id === this.#config.vmixTbar ? `vMix mix ${this.#vmixMix}` : this.#atem ? `ATEM M/E ${this.#atemMe}` : 'the ATEM, but no ATEM address is set'
+			console.warn(`2-Stripe ${id === 'tbar1' ? 'T-Bar 1' : 'T-Bar 2'} moved, driving ${target}`)
+		}
 		if (!this.#config) return
 		if (id === this.#config.vmixTbar) this.#vmix?.move(lever)
 		else this.#atem?.move(lever)

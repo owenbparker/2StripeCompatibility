@@ -28,7 +28,7 @@ AtemSocketChild.prototype._receivePacket = function (this: any, packet: Buffer, 
 	if (flags & 0x02) {
 		const payload = packet.subarray(12)
 		const refused = payload[0] === 0x03
-		console.log(
+		console.warn(
 			`2-Stripe ATEM ${rinfo.address} answered the connection (${payload.toString('hex') || 'empty'})` +
 				(refused ? ': it refused, probably because it already has as many control clients as it allows' : ''),
 		)

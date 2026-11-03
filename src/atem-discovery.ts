@@ -57,7 +57,7 @@ export class AtemDiscovery extends EventEmitter<AtemDiscoveryEvents> {
 		socket.on('message', (msg, rinfo) => {
 			if (!isAtemAnswer(msg) || this.found.has(rinfo.address)) return
 			this.found.add(rinfo.address)
-			console.log(`2-Stripe found an ATEM at ${rinfo.address}`)
+			console.warn(`2-Stripe found an ATEM at ${rinfo.address}`)
 			this.emit('found', rinfo.address)
 		})
 		socket.on('error', (err) => {

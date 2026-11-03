@@ -52,7 +52,7 @@ class TwoStripeRemote extends EventEmitter<SurfacePluginRemoteEvents<PluginInfo>
 	constructor() {
 		super()
 		this.discovery.on('found', (panel) => {
-			console.log(`2-Stripe found: ${panel.ip} (${panel.mac}, ${panel.model})`)
+			console.warn(`2-Stripe found: ${panel.ip} (${panel.mac}, ${panel.model})`)
 			this.emit('connectionsFound', [
 				{
 					id: panel.mac,
@@ -245,7 +245,7 @@ class TwoStripeDetection extends EventEmitter<SurfacePluginDetectionEvents<Plugi
 			this.emit('surfacesRemoved', [mac])
 		})
 
-		console.log(`2-Stripe connected automatically: ${ip} (${mac})`)
+		console.warn(`2-Stripe connected automatically: ${ip} (${mac})`)
 		this.emit('surfacesAdded', [
 			{
 				surfaceId: `2stripe-${mac}`,
