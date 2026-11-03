@@ -38,6 +38,13 @@ export class TwoStripeSurface implements SurfaceInstance {
 			// Logged so buttons can be located from Companion's log while mapping the panel
 			console.log(`2-Stripe press: ${button?.id ?? 'unmapped'} (bank ${bank.toString(16)} bit ${bit})`)
 			if (button) context.keyDownById(button.id)
+			// The T-bars follow the mix / M/E picked with the 1-4 buttons above each transition area
+			const select = /^(upper|lower)-mix-([1-4])$/.exec(button?.id ?? '')
+			if (select) {
+				const n = Number(select[2])
+				if (select[1] === 'upper') this.#switchers.selectVmixMix(n)
+				else this.#switchers.selectAtemMe(n)
+			}
 		})
 		panel.on('buttonUp', (bank, bit) => {
 			const button = findButton(bank, bit)

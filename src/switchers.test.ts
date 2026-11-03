@@ -17,3 +17,11 @@ test('switcher settings default to vMix on this computer and the ATEM off', () =
 	assert.deepEqual(parseSwitcherConfig({}), { vmixHost: '127.0.0.1', atemHost: '', vmixTbar: 'tbar1' })
 	assert.deepEqual(parseSwitcherConfig({ atemHost: ' 10.0.0.5 ', vmixTbar: 'tbar2' }).atemHost, '10.0.0.5')
 })
+
+test('a follower started with the lever at the top counts the top as 0%', () => {
+	const f = new TbarFollower(true)
+	assert.equal(f.position(1), 0)
+	assert.equal(f.position(0.5), 0.5)
+	assert.equal(f.position(0), 1)
+	assert.equal(f.position(0.25), 0.25)
+})
