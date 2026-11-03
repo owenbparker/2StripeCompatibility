@@ -171,7 +171,22 @@ export class AtemTbar {
 		this.host = host
 		console.warn(`2-Stripe connecting to ATEM ${host}`)
 		this.#atem.on('error', (e) => console.warn(`2-Stripe ATEM ${host}: ${e}`))
-		this.#atem.on('connected', () => console.warn(`2-Stripe connected to ATEM ${host}`))
+		this.#atem.on('connected', () => {
+			const state = this.#atem.state
+			const me1 = state?.video.mixEffects[0]
+			const name = (input?: number) => (input === undefined ? '?' : `${input} ${state?.inputs[input]?.longName ?? ''}`.trim())
+			console.warn(
+				`2-Stripe connected to ATEM ${host}: ${state?.info.productIdentifier ?? 'unknown model'}, ` +
+					`M/E 1 program ${name(me1?.programInput)}, preview ${name(me1?.previewInput)}`,
+			)
+		})
+		// What the ATEM reports back, to tell whether it acts on the T-bar
+		this.#atem.on('stateChanged', (state, paths) => {
+			const me = this.#me - 1
+			if (!paths.some((p) => p.startsWith(`video.mixEffects.${me}.transitionPosition`))) return
+			const pos = state.video.mixEffects[me]?.transitionPosition
+			if (pos) this.#report(`ATEM ${host} M/E ${this.#me} reports T-bar ${Math.round(pos.handlePosition / 100)}%, ${pos.inTransition ? 'in transition' : 'not in transition'}`)
+		})
 		this.#atem.on('disconnected', () => console.warn(`2-Stripe lost the ATEM ${host}`))
 		this.#atem.on('info', (m) => {
 			// 'reconnect' repeats every second while the ATEM doesn't answer; keep the log readable
@@ -197,6 +212,14 @@ export class AtemTbar {
 	/** Follow the M/E chosen with the panel's 1-4 buttons. The lever's current end becomes 0% for the new M/E. */
 	select(me: number, _lever?: number): void {
 		this.#me = me
+	}
+
+	#lastReport = 0
+	#report(message: string): void {
+		const now = Date.now()
+		if (now - this.#lastReport < 1000) return
+		this.#lastReport = now
+		console.warn(`2-Stripe ${message}`)
 	}
 
 	#lastNote = 0
