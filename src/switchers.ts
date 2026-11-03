@@ -1,6 +1,9 @@
 import { Socket } from 'node:net'
-import { Atem, AtemConnectionStatus } from 'atem-connection'
+import { Atem, AtemConnectionStatus, Enums } from 'atem-connection'
 import './atem-in-process.ts'
+
+const TransitionStyle = Enums.TransitionStyle
+type TransitionStyle = Enums.TransitionStyle
 import type { SomeCompanionInputField } from '@companion-surface/base'
 import { AtemDiscovery } from './atem-discovery.ts'
 
@@ -33,12 +36,24 @@ export const SWITCHER_CONFIG_FIELDS: SomeCompanionInputField[] = [
 		],
 		default: 'tbar1',
 	},
+	{
+		id: 'atemTbarStyle',
+		type: 'dropdown',
+		label: 'ATEM T-bar transition',
+		tooltip: 'With "Always a mix", the T-bar fades even when a stinger, wipe or other style is selected, and puts that style back afterwards for the AUTO button.',
+		choices: [
+			{ id: 'mix', label: 'Always a mix (fade)' },
+			{ id: 'selected', label: 'The style selected on the ATEM' },
+		],
+		default: 'mix',
+	},
 ]
 
 export interface SwitcherConfig {
 	vmixHost: string
 	atemHost: string
 	vmixTbar: 'tbar1' | 'tbar2'
+	atemAlwaysMix: boolean
 }
 
 export function parseSwitcherConfig(config: Record<string, unknown>): SwitcherConfig {
@@ -47,6 +62,7 @@ export function parseSwitcherConfig(config: Record<string, unknown>): SwitcherCo
 		// People paste the address with the ATEM's port (172.24.192.213:9910); the port is always 9910
 		atemHost: String(config.atemHost ?? '').trim().replace(/:\d*$/, ''),
 		vmixTbar: config.vmixTbar === 'tbar2' ? 'tbar2' : 'tbar1',
+		atemAlwaysMix: config.atemTbarStyle !== 'selected',
 	}
 }
 
@@ -56,15 +72,17 @@ export function parseSwitcherConfig(config: Record<string, unknown>): SwitcherCo
  * by moving it back the other way, so the direction flips each time a transition reaches 100%.
  */
 export class TbarFollower {
-	#flipped: boolean
+	/** null until the first reading, when wherever the lever sits becomes 0% */
+	#flipped: boolean | null
 
-	/** @param leverAtTop where the lever sits when this starts, so that end counts as 0% */
-	constructor(leverAtTop = false) {
-		this.#flipped = leverAtTop
+	/** @param leverAtTop where the lever sits when this starts, so that end counts as 0%. Left out, the first reading decides. */
+	constructor(leverAtTop?: boolean) {
+		this.#flipped = leverAtTop ?? null
 	}
 
 	/** @param lever 0 to 1. Returns the transition position, 0 to 1. */
 	position(lever: number): number {
+		this.#flipped ??= lever > 0.5
 		const pos = this.#flipped ? 1 - lever : lever
 		if (pos >= 1) this.#flipped = !this.#flipped
 		return Math.min(1, Math.max(0, pos))
@@ -162,7 +180,13 @@ export class VmixTbar {
 
 export class AtemTbar {
 	#me = 1
+	#follower = new TbarFollower()
+	#lever = 0
 	#lastWarning = 0
+	/** Make every T-bar transition a mix, whatever style is selected on the switcher */
+	alwaysMix = true
+	/** The style that was selected before the T-bar switched it to a mix, put back once that transition ends */
+	#restore: { me: number; style: TransitionStyle } | null = null
 	readonly #atem = new Atem({ disableMultithreaded: true })
 	readonly #out: LatestOnly
 	readonly host: string
@@ -179,32 +203,22 @@ export class AtemTbar {
 				`2-Stripe connected to ATEM ${host}: ${state?.info.productIdentifier ?? 'unknown model'}, ` +
 					`M/E 1 program ${name(me1?.programInput)}, preview ${name(me1?.previewInput)}`,
 			)
-			const props = me1?.transitionProperties
-			const pos = me1?.transitionPosition
-			console.warn(
-				`2-Stripe ATEM ${host} M/E 1 transition: style ${props?.nextStyle ?? '?'} (0 mix, 1 dip, 2 wipe, 3 DVE, 4 sting), ` +
-					`next ${JSON.stringify(props?.nextSelection ?? '?')}, T-bar ${pos ? Math.round(pos.handlePosition / 100) : '?'}%, ` +
-					`${pos?.inTransition ? 'in transition' : 'not in transition'}, preview transition ${me1?.transitionPreview ? 'on' : 'off'}, ` +
-					`firmware protocol ${state?.info.apiVersion ?? '?'}`,
-			)
 		})
-		this.#atem.on('debug', (m) => this.#warn(`ATEM ${host} debug: ${m}`))
-		// List what the ATEM sends back in the moments after a T-bar command, to see whether it reacts at all
-		this.#atem.on('receivedCommands', (commands) => {
-			if (Date.now() - this.#lastSent > 1500) return
-			for (const c of commands) {
-				const raw = (c.constructor as { rawName?: string }).rawName ?? c.constructor.name
-				if (raw !== 'Time') this.#replies.add(raw)
+		this.#atem.on('stateChanged', (state, paths) => {
+			const restore = this.#restore
+			if (!restore || !paths.includes(`video.mixEffects.${restore.me}.transitionPosition`)) return
+			const me = state.video.mixEffects[restore.me]
+			if (!me || me.transitionPosition.inTransition) return
+			// The T-bar transition finished (or was pulled back): put the selected style back, unless someone changed it since
+			this.#restore = null
+			if (me.transitionProperties.nextStyle === TransitionStyle.MIX && restore.style !== TransitionStyle.MIX) {
+				this.#atem.setTransitionStyle({ nextStyle: restore.style }, restore.me).catch((e) => this.#warn(`ATEM ${host}: ${e}`))
 			}
 		})
-		// What the ATEM reports back, to tell whether it acts on the T-bar
-		this.#atem.on('stateChanged', (state, paths) => {
-			const me = this.#me - 1
-			if (!paths.some((p) => p.startsWith(`video.mixEffects.${me}.transitionPosition`))) return
-			const pos = state.video.mixEffects[me]?.transitionPosition
-			if (pos) this.#report(`ATEM ${host} M/E ${this.#me} reports T-bar ${Math.round(pos.handlePosition / 100)}%, ${pos.inTransition ? 'in transition' : 'not in transition'}`)
+		this.#atem.on('disconnected', () => {
+			this.#restore = null
+			console.warn(`2-Stripe lost the ATEM ${host}`)
 		})
-		this.#atem.on('disconnected', () => console.warn(`2-Stripe lost the ATEM ${host}`))
 		this.#atem.on('info', (m) => {
 			// 'reconnect' repeats every second while the ATEM doesn't answer; keep the log readable
 			if (m === 'reconnect') this.#warn(`still trying to reach the ATEM ${host}`)
@@ -218,12 +232,16 @@ export class AtemTbar {
 			}
 			const me = this.#me - 1
 			try {
-				this.#lastSent = Date.now()
-				await this.#atem.setTransitionPosition(value, me)
-				const replies = [...this.#replies].join(' ') || 'nothing'
-				if (this.#note(`ATEM ${host} took T-bar ${Math.round(value / 100)}% on M/E ${this.#me}; since then it sent: ${replies}`)) {
-					this.#replies.clear()
+				const state = this.#atem.state?.video.mixEffects[me]
+				if (this.alwaysMix && state && !state.transitionPosition.inTransition) {
+					// A transition is about to start: make it a mix, and remember the selected style to put back after
+					const style = state.transitionProperties.nextStyle
+					if (style !== TransitionStyle.MIX) {
+						this.#restore = { me, style }
+						await this.#atem.setTransitionStyle({ nextStyle: TransitionStyle.MIX }, me)
+					}
 				}
+				await this.#atem.setTransitionPosition(value, me)
 			} catch (e) {
 				this.#warn(`ATEM ${host} refused the T-bar on M/E ${this.#me}: ${e}`)
 			}
@@ -231,28 +249,10 @@ export class AtemTbar {
 	}
 
 	/** Follow the M/E chosen with the panel's 1-4 buttons. The lever's current end becomes 0% for the new M/E. */
-	select(me: number, _lever?: number): void {
+	select(me: number): void {
+		if (me === this.#me) return
 		this.#me = me
-	}
-
-	#lastReport = 0
-	#report(message: string): void {
-		const now = Date.now()
-		if (now - this.#lastReport < 1000) return
-		this.#lastReport = now
-		console.warn(`2-Stripe ${message}`)
-	}
-
-	#lastSent = 0
-	readonly #replies = new Set<string>()
-	#lastNote = 0
-	/** A progress line at most once a second while the lever moves. Returns whether it was logged. */
-	#note(message: string): boolean {
-		const now = Date.now()
-		if (now - this.#lastNote < 1000) return false
-		this.#lastNote = now
-		console.warn(`2-Stripe ${message}`)
-		return true
+		this.#follower = new TbarFollower(this.#lever > 0.5)
 	}
 
 	/** At most one warning every few seconds, so a moving lever doesn't flood the log */
@@ -264,8 +264,9 @@ export class AtemTbar {
 	}
 
 	move(lever: number): void {
-		// The ATEM tracks which way the handle runs itself (like its own panels), so it gets the lever as it is
-		this.#out.push(Math.round(lever * 10000))
+		// Like vMix, a transition completes at either end: after one finishes at the top, pulling the lever back down runs the next
+		this.#lever = lever
+		this.#out.push(Math.round(this.#follower.position(lever) * 10000))
 	}
 
 	close(): void {
@@ -282,7 +283,6 @@ export class SwitcherLinks {
 	#vmixMix = 1
 	#atemMe = 1
 	readonly #lever = { tbar1: 0, tbar2: 0 }
-	#lastLeverLog = 0
 
 	update(config: SwitcherConfig): void {
 		if (config.vmixHost !== this.#config?.vmixHost) {
@@ -291,6 +291,7 @@ export class SwitcherLinks {
 			this.#vmix?.select(this.#vmixMix, this.#vmixLever(config))
 		}
 		this.#config = config
+		if (this.#atem) this.#atem.alwaysMix = config.atemAlwaysMix
 		if (config.atemHost) {
 			this.#stopDiscovery()
 			this.#connectAtem(config.atemHost)
@@ -315,17 +316,13 @@ export class SwitcherLinks {
 
 	selectAtemMe(me: number): void {
 		this.#atemMe = me
-		if (this.#config) this.#atem?.select(me, this.#lever[this.#config.vmixTbar === 'tbar1' ? 'tbar2' : 'tbar1'])
+		this.#atem?.select(me)
 	}
 
-	tbar(id: 'tbar1' | 'tbar2', lever: number): void {
+	tbar(id: 'tbar1' | 'tbar2', raw: number): void {
+		// Snap the last couple of steps at each end, so the lever reliably reaches 0% and 100%
+		const lever = raw <= 0.01 ? 0 : raw >= 0.99 ? 1 : raw
 		this.#lever[id] = lever
-		const now = Date.now()
-		if (now - this.#lastLeverLog > 2000) {
-			this.#lastLeverLog = now
-			const target = !this.#config ? 'nothing yet' : id === this.#config.vmixTbar ? `vMix mix ${this.#vmixMix}` : this.#atem ? `ATEM M/E ${this.#atemMe}` : 'the ATEM, but no ATEM address is set'
-			console.warn(`2-Stripe ${id === 'tbar1' ? 'T-Bar 1' : 'T-Bar 2'} moved, driving ${target}`)
-		}
 		if (!this.#config) return
 		if (id === this.#config.vmixTbar) this.#vmix?.move(lever)
 		else this.#atem?.move(lever)
@@ -346,7 +343,8 @@ export class SwitcherLinks {
 		if (this.#atem?.host === host) return
 		this.#atem?.close()
 		this.#atem = new AtemTbar(host)
-		if (this.#config) this.#atem.select(this.#atemMe, this.#lever[this.#config.vmixTbar === 'tbar1' ? 'tbar2' : 'tbar1'])
+		this.#atem.select(this.#atemMe)
+		this.#atem.alwaysMix = this.#config?.atemAlwaysMix ?? true
 	}
 
 	#stopDiscovery(): void {
