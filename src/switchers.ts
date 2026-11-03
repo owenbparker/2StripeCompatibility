@@ -179,6 +179,23 @@ export class AtemTbar {
 				`2-Stripe connected to ATEM ${host}: ${state?.info.productIdentifier ?? 'unknown model'}, ` +
 					`M/E 1 program ${name(me1?.programInput)}, preview ${name(me1?.previewInput)}`,
 			)
+			const props = me1?.transitionProperties
+			const pos = me1?.transitionPosition
+			console.warn(
+				`2-Stripe ATEM ${host} M/E 1 transition: style ${props?.nextStyle ?? '?'} (0 mix, 1 dip, 2 wipe, 3 DVE, 4 sting), ` +
+					`next ${JSON.stringify(props?.nextSelection ?? '?')}, T-bar ${pos ? Math.round(pos.handlePosition / 100) : '?'}%, ` +
+					`${pos?.inTransition ? 'in transition' : 'not in transition'}, preview transition ${me1?.transitionPreview ? 'on' : 'off'}, ` +
+					`firmware protocol ${state?.info.apiVersion ?? '?'}`,
+			)
+		})
+		this.#atem.on('debug', (m) => this.#warn(`ATEM ${host} debug: ${m}`))
+		// List what the ATEM sends back in the moments after a T-bar command, to see whether it reacts at all
+		this.#atem.on('receivedCommands', (commands) => {
+			if (Date.now() - this.#lastSent > 1500) return
+			for (const c of commands) {
+				const raw = (c.constructor as { rawName?: string }).rawName ?? c.constructor.name
+				if (raw !== 'Time') this.#replies.add(raw)
+			}
 		})
 		// What the ATEM reports back, to tell whether it acts on the T-bar
 		this.#atem.on('stateChanged', (state, paths) => {
@@ -201,8 +218,12 @@ export class AtemTbar {
 			}
 			const me = this.#me - 1
 			try {
+				this.#lastSent = Date.now()
 				await this.#atem.setTransitionPosition(value, me)
-				this.#note(`ATEM ${host} took T-bar ${Math.round(value / 100)}% on M/E ${this.#me}`)
+				const replies = [...this.#replies].join(' ') || 'nothing'
+				if (this.#note(`ATEM ${host} took T-bar ${Math.round(value / 100)}% on M/E ${this.#me}; since then it sent: ${replies}`)) {
+					this.#replies.clear()
+				}
 			} catch (e) {
 				this.#warn(`ATEM ${host} refused the T-bar on M/E ${this.#me}: ${e}`)
 			}
@@ -222,13 +243,16 @@ export class AtemTbar {
 		console.warn(`2-Stripe ${message}`)
 	}
 
+	#lastSent = 0
+	readonly #replies = new Set<string>()
 	#lastNote = 0
-	/** A progress line at most once a second while the lever moves */
-	#note(message: string): void {
+	/** A progress line at most once a second while the lever moves. Returns whether it was logged. */
+	#note(message: string): boolean {
 		const now = Date.now()
-		if (now - this.#lastNote < 1000) return
+		if (now - this.#lastNote < 1000) return false
 		this.#lastNote = now
 		console.warn(`2-Stripe ${message}`)
+		return true
 	}
 
 	/** At most one warning every few seconds, so a moving lever doesn't flood the log */
