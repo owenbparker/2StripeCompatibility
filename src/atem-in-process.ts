@@ -20,6 +20,22 @@ AtemSocket.prototype._createSocketProcess = async function (this: any) {
 	)
 }
 
+// Report what the ATEM says when it answers the first hello, since a full ATEM (too many control clients) answers
+// and then goes silent, which otherwise looks like a dropped connection.
+const receive = AtemSocketChild.prototype._receivePacket
+AtemSocketChild.prototype._receivePacket = function (this: any, packet: Buffer, rinfo: { address: string; size: number }) {
+	const flags = packet.length >= 12 ? packet.readUInt8(0) >> 3 : 0
+	if (flags & 0x02) {
+		const payload = packet.subarray(12)
+		const refused = payload[0] === 0x03
+		console.log(
+			`2-Stripe ATEM ${rinfo.address} answered the connection (${payload.toString('hex') || 'empty'})` +
+				(refused ? ': it refused, probably because it already has as many control clients as it allows' : ''),
+		)
+	}
+	return receive.call(this, packet, rinfo)
+}
+
 AtemSocket.prototype.destroy = async function (this: any) {
 	await this.disconnect()
 	if (this._creatingSocket) await this._creatingSocket.catch(() => null)

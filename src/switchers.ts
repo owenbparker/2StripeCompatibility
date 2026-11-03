@@ -174,6 +174,11 @@ export class AtemTbar {
 		this.#atem.on('error', (e) => console.warn(`2-Stripe ATEM ${host}: ${e}`))
 		this.#atem.on('connected', () => console.log(`2-Stripe connected to ATEM ${host}`))
 		this.#atem.on('disconnected', () => console.warn(`2-Stripe lost the ATEM ${host}`))
+		this.#atem.on('info', (m) => {
+			// 'reconnect' repeats every second while the ATEM doesn't answer; keep the log readable
+			if (m === 'reconnect') this.#warn(`still trying to reach the ATEM ${host}`)
+			else console.log(`2-Stripe ATEM ${host}: ${m}`)
+		})
 		void this.#atem.connect(host).catch((e) => console.warn(`2-Stripe ATEM ${host}: ${e}`))
 		this.#out = new LatestOnly(async (value) => {
 			if (this.#atem.status !== AtemConnectionStatus.CONNECTED) {
