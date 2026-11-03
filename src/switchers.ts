@@ -1,5 +1,6 @@
 import { Socket } from 'node:net'
 import { Atem, AtemConnectionStatus } from 'atem-connection'
+import './atem-in-process.ts'
 import type { SomeCompanionInputField } from '@companion-surface/base'
 import { AtemDiscovery } from './atem-discovery.ts'
 
@@ -43,7 +44,8 @@ export interface SwitcherConfig {
 export function parseSwitcherConfig(config: Record<string, unknown>): SwitcherConfig {
 	return {
 		vmixHost: String(config.vmixHost ?? '127.0.0.1').trim(),
-		atemHost: String(config.atemHost ?? '').trim(),
+		// People paste the address with the ATEM's port (172.24.192.213:9910); the port is always 9910
+		atemHost: String(config.atemHost ?? '').trim().replace(/:\d*$/, ''),
 		vmixTbar: config.vmixTbar === 'tbar2' ? 'tbar2' : 'tbar1',
 	}
 }
