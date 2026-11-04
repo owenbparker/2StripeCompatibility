@@ -1,0 +1,31 @@
+{
+	"name": "companion-surface-tricaster-2stripe",
+	"version": "0.1.20",
+	"description": "Bitfocus Companion surface module for the Vizrt/NewTek TriCaster 2-Stripe control panel",
+	"type": "module",
+	"main": "dist/main.js",
+	"license": "MIT",
+	"private": true,
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"dev": "tsc -p tsconfig.build.json --watch",
+		"test": "tsc -p tsconfig.json --noEmit && node --test --experimental-strip-types --test-timeout=10000 \"src/**/*.test.ts\"",
+		"package": "npm run build && companion-surface-build"
+	},
+	"engines": {
+		"node": "^22.21"
+	},
+	"dependencies": {
+		"@companion-surface/base": "~1.4.1",
+		"@julusian/freetype2": "file:stubs/freetype2",
+		"atem-connection": "^3.10.3"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^3.2.0",
+		"@types/node": "^22.19.0",
+		"typescript": "~5.9.3"
+	},
+	"overrides": {
+		"@julusian/freetype2": "$@julusian/freetype2"
+	}
+}

@@ -1,0 +1,7 @@
+{
+	"name": "@julusian/freetype2",
+	"version": "1.1.2-stub",
+	"description": "Stand-in for atem-connection's optional font renderer, which only draws multiviewer labels. It has no Windows build, and this module never draws labels.",
+	"main": "index.js",
+	"license": "MIT"
+}
